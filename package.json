@@ -1,0 +1,22 @@
+{
+  "author": {
+    "name": "David Herron",
+    "email": "david@davidherron.com",
+    "url": "http://nodejs.davidherron.com"
+  },
+  "name": "akashacms-tagged-content",
+  "description": "A plugin for AkashaCMS for tagging content, creating tag clouds, etc",
+  "homepage": "https://github.com/robogeek/akashacms-tagged-content",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/robogeek/akashacms-tagged-content.git"
+  },
+  "version": "0.1.1",
+  "engines": {
+    "node": ">=0.10.1"
+  },
+  "dependencies": {
+    "tagcloud-generator": ">=0.1.3",
+    "temporary": "*"
+  }
+}

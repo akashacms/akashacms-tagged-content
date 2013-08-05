@@ -1,0 +1,6 @@
+<div id="tag-cloud">
+    <% for (var i = 0; i < tagCloudData.tagData.length; i++) {
+        var tagData = tagCloudData.tagData[i];
+        %><a style="font-size: <%= tagData.fontSize %>;" href="<%= tagData.indexPageLink %>"><%= tagData.tagName %></a>
+    <% } %>
+</div>
