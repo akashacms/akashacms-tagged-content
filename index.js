@@ -88,7 +88,6 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
     fs.mkdirSync(tagsDir);
 
     for (tagnm in tagCloudData.tagData) {
-    // for (var i = 0; i < tagCloudData.tagData.length; i++) {
         var tagData = tagCloudData.tagData[tagnm];
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         
@@ -147,6 +146,6 @@ var genTagCloudData = function(akasha, config) {
             util.log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
         }
         taggen.generateFontSizes(tagCloudData.tagData);
-        util.log(util.inspect(tagCloudData));
+        // util.log(util.inspect(tagCloudData));
     }
 }
