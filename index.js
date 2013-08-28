@@ -93,7 +93,9 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         
         // TBD Sort the entries by ...?  Name?  Date?
         
-        var entryText = config.tags.header.replace("@title@", tagData.tagName);
+        var entryText = config.tags.header
+            .replace("@title@", tagData.tagName)
+            .replace("@tagName@", tagData.tagName);
         for (var j = 0; j < tagData.entries.length; j++) {
             var entry = tagData.entries[j];
             entryText += '<p><a href="@url@">@title@</a></p>'
@@ -101,7 +103,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
                 .replace("@title@", entry.frontmatter.title);
         }
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
-        util.log('TAG FILE ' + tagFileName);
+        // util.log('TAG FILE ' + tagFileName);
         fs.writeFileSync(tagFileName, entryText, {
             encoding: 'utf8'
         });
@@ -118,18 +120,18 @@ var genTagCloudData = function(akasha, config) {
             tagData: []
         };
         akasha.eachDocument(config, function(entry) {
-            util.log('eachDocument '+ entry.path);
+            // util.log('eachDocument '+ entry.path);
             if (entry.frontmatter && entry.frontmatter.hasOwnProperty('tags')) {
                 // parse tags
                 // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
-                util.log(entry.frontmatter.tags);
+                // util.log(entry.frontmatter.tags);
                 var taglist = tagParse(entry.frontmatter.tags);
                 for (var i = 0; i < taglist.length; i++) {
                     var tagnm = taglist[i];
                     if (! tagCloudData.tagData[tagnm]) {
                         tagCloudData.tagData[tagnm] = { tagName: tagnm, entries: [] };
                     }
-                    util.log('*** adding '+ entry.path +' to entries for '+ tagnm);
+                    // util.log('*** adding '+ entry.path +' to entries for '+ tagnm);
                     tagCloudData.tagData[tagnm].entries.push(entry);
                 }
             }
@@ -140,10 +142,9 @@ var genTagCloudData = function(akasha, config) {
             else if (a.tagnm === b.tagnm) return 0;
             else return 1;
         });*/
-        //for (var i = 0; i < tagCloudData.tagData.length; i++) {
         for (tagnm in tagCloudData.tagData) {
             tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
-            util.log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
+            // util.log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
         }
         taggen.generateFontSizes(tagCloudData.tagData);
         // util.log(util.inspect(tagCloudData));
