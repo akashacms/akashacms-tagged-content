@@ -35,10 +35,25 @@ module.exports.config = function(akasha, config) {
     
     config.funcs.tagCloud = function(arg, callback) {
         genTagCloudData(akasha, config);
-        var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
-            return config.tags.pathIndexes +'/'+ tag2encode4url(tagName) +'.html';
-        }, "");
+        var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) { tagPageUrl(config, tagName) }, "");
         // util.log('tagCloud ' + val);
+        if (callback) callback(undefined, val);
+        return val;
+    }
+    
+    config.funcs.tagsForDocument = function(arg, callback) {
+        var entry = akasha.getFileEntry(config, arg.documentPath);
+        var taglist = entryTags(entry);
+        
+        var val = "";
+        if (taglist) {
+            var tagz = [];
+            for (var i = 0; i < taglist.length; i++) {
+                tagz.push({ tagName: taglist[i], tagUrl: tagPageUrl(config, taglist[i]) });
+            }
+                    
+            var val = akasha.partialSync(config, "tagged-content-doctags.html.ejs", { tagz: tagz });
+        }
         if (callback) callback(undefined, val);
         return val;
     }
@@ -55,6 +70,10 @@ module.exports.config = function(akasha, config) {
     });
 }
 
+var tagPageUrl = function(config, tagName) {
+    return config.tags.pathIndexes +'/'+ tag2encode4url(tagName) +'.html';
+}
+
 var tagParse = function(tags) {
     var taglist = [];
     var re = /\s*,\s*/;
@@ -62,6 +81,18 @@ var tagParse = function(tags) {
         taglist.push(tag.trim());
     });
     return taglist;
+}
+
+var entryTags = function(entry) {
+    if (entry.frontmatter && entry.frontmatter.hasOwnProperty('tags')) {
+        // parse tags
+        // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
+        // util.log(entry.frontmatter.tags);
+        var taglist = tagParse(entry.frontmatter.tags);
+        return taglist;
+    } else {
+        return undefined;
+    }
 }
 
 /**
@@ -121,11 +152,8 @@ var genTagCloudData = function(akasha, config) {
         };
         akasha.eachDocument(config, function(entry) {
             // util.log('eachDocument '+ entry.path);
-            if (entry.frontmatter && entry.frontmatter.hasOwnProperty('tags')) {
-                // parse tags
-                // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
-                // util.log(entry.frontmatter.tags);
-                var taglist = tagParse(entry.frontmatter.tags);
+            var taglist = entryTags(entry);
+            if (taglist) {
                 for (var i = 0; i < taglist.length; i++) {
                     var tagnm = taglist[i];
                     if (! tagCloudData.tagData[tagnm]) {
