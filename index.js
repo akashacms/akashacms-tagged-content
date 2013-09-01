@@ -35,7 +35,9 @@ module.exports.config = function(akasha, config) {
     
     config.funcs.tagCloud = function(arg, callback) {
         genTagCloudData(akasha, config);
-        var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) { tagPageUrl(config, tagName) }, "");
+        var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
+            return tagPageUrl(config, tagName);
+        }, "");
         // util.log('tagCloud ' + val);
         if (callback) callback(undefined, val);
         return val;
@@ -71,7 +73,7 @@ module.exports.config = function(akasha, config) {
 }
 
 var tagPageUrl = function(config, tagName) {
-    return config.tags.pathIndexes +'/'+ tag2encode4url(tagName) +'.html';
+    return config.tags.pathIndexes + tag2encode4url(tagName) +'.html';
 }
 
 var tagParse = function(tags) {
