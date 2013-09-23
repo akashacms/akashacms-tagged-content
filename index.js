@@ -125,6 +125,11 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         
         // TBD Sort the entries by ...?  Name?  Date?
+        tagData.entries.sort(function(a, b) {
+            if (a.frontmatter.title < b.frontmatter.title) return -1;
+            else if (a.frontmatter.title === b.frontmatter.title) return 0;
+            else return 1;
+        });
         
         var entryText = config.tags.header
             .replace("@title@", tagData.tagName)
@@ -168,8 +173,8 @@ var genTagCloudData = function(akasha, config) {
         });
         util.log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
         /*tagCloudData.tagData.sort(function(a, b) {
-            if (a.tagnm < b.tagnm) return -1;
-            else if (a.tagnm === b.tagnm) return 0;
+            if (a.tagName < b.tagName) return -1;
+            else if (a.tagName === b.tagName) return 0;
             else return 1;
         });*/
         for (tagnm in tagCloudData.tagData) {
