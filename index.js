@@ -66,9 +66,10 @@ module.exports.config = function(akasha, config) {
             if (err) cb(err); else cb();
         });
     });
-    akasha.emitter.on('done-render-files', function() {
+    akasha.emitter.on('done-render-files', function(cb) {
         util.log('done-render-files received');
         // fs.rmdirSync(tempDir.path);
+        cb();
     });
 }
 
