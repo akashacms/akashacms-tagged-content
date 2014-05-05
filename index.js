@@ -43,7 +43,7 @@ module.exports.config = function(akasha, config) {
         return val;
     }
     
-    config.funcs.tagsForDocument = function(arg, callback) {
+    var doTagsForDocument = function(arg, template, callback) {
         var entry = akasha.getFileEntry(config, arg.documentPath);
         var taglist = entryTags(entry);
         
@@ -54,10 +54,19 @@ module.exports.config = function(akasha, config) {
                 tagz.push({ tagName: taglist[i], tagUrl: tagPageUrl(config, taglist[i]) });
             }
                     
-            var val = akasha.partialSync(config, "tagged-content-doctags.html.ejs", { tagz: tagz });
+            var val = akasha.partialSync(config, template, { tagz: tagz });
         }
         if (callback) callback(undefined, val);
         return val;
+    }
+    
+    
+    config.funcs.tagsForDocument = function(arg, callback) {
+        return doTagsForDocument(arg, "tagged-content-doctags-bootstrap.html.ejs", callback);
+    }
+    
+    config.funcs.tagsForDocumentBootstrap = function(arg, callback) {
+        return doTagsForDocument(arg, "tagged-content-doctags.html.ejs", callback);
     }
     
     akasha.emitter.on('before-render-files', function(cb) {
@@ -135,11 +144,21 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         var entryText = config.tags.header
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
+        if (config.tags.useBootstrap) {
+            entryText += "<ul class='list-group'>";
+        }
         for (var j = 0; j < tagData.entries.length; j++) {
             var entry = tagData.entries[j];
-            entryText += '<p><a href="@url@">@title@</a></p>'
+            var templ = config.tags.useBootstrap
+                ? '<li class="list-group-item"><a href="@url@">@title@</a>@teaser@</li>'
+                : '<p><a href="@url@">@title@</a>@teaser@</p>';
+            entryText += templ
                 .replace("@url@", akasha.urlForFile(entry.path))
-                .replace("@title@", entry.frontmatter.title);
+                .replace("@title@", entry.frontmatter.title)
+                .replace("@teaser@", entry.frontmatter.teaser ? entry.frontmatter.teaser : "");
+        }
+        if (config.tags.useBootstrap) {
+            entryText += "</ul>";
         }
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
         // util.log('TAG FILE ' + tagFileName);
