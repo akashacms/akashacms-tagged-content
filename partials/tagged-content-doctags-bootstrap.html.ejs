@@ -1,0 +1,7 @@
+<span class="taglist list-group">
+    <% for (var i = 0; i < tagz.length; i++) {
+        var tagData = tagz[i];
+        %> <a class="taglink-header list-group-item" href="<%= tagData.tagUrl %>"><%= tagData.tagName %></a> <%
+        // if (i < (tagz.length-1)) { % >&raquo;< % }
+    } %>
+</span>
