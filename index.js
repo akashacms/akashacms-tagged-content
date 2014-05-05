@@ -53,7 +53,6 @@ module.exports.config = function(akasha, config) {
             for (var i = 0; i < taglist.length; i++) {
                 tagz.push({ tagName: taglist[i], tagUrl: tagPageUrl(config, taglist[i]) });
             }
-                    
             var val = akasha.partialSync(config, template, { tagz: tagz });
         }
         if (callback) callback(undefined, val);
@@ -62,12 +61,13 @@ module.exports.config = function(akasha, config) {
     
     
     config.funcs.tagsForDocument = function(arg, callback) {
-        return doTagsForDocument(arg, "tagged-content-doctags-bootstrap.html.ejs", callback);
-    }
-    
-    config.funcs.tagsForDocumentBootstrap = function(arg, callback) {
         return doTagsForDocument(arg, "tagged-content-doctags.html.ejs", callback);
     }
+    
+    /* We don't want an xyzzyBootstrap function
+    config.funcs.tagsForDocumentBootstrap = function(arg, callback) {
+        return doTagsForDocument(arg, "tagged-content-doctags-bootstrap.html.ejs", callback);
+    }*/
     
     akasha.emitter.on('before-render-files', function(cb) {
         util.log('before-render-files received');
@@ -144,22 +144,19 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         var entryText = config.tags.header
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
-        if (config.tags.useBootstrap) {
-            entryText += "<ul class='list-group'>";
-        }
+            
+        var entriez = [];
         for (var j = 0; j < tagData.entries.length; j++) {
             var entry = tagData.entries[j];
-            var templ = config.tags.useBootstrap
-                ? '<li class="list-group-item"><a href="@url@">@title@</a>@teaser@</li>'
-                : '<p><a href="@url@">@title@</a>@teaser@</p>';
-            entryText += templ
-                .replace("@url@", akasha.urlForFile(entry.path))
-                .replace("@title@", entry.frontmatter.title)
-                .replace("@teaser@", entry.frontmatter.teaser ? entry.frontmatter.teaser : "");
+            entriez.push({
+                url: akasha.urlForFile(entry.path),
+                title: entry.frontmatter.title,
+                teaser: entry.frontmatter.teaser ? entry.frontmatter.teaser : ""
+            });
         }
-        if (config.tags.useBootstrap) {
-            entryText += "</ul>";
-        }
+        entryText += akasha.partialSync(config, "tagged-content-tagpagelist.html.ejs", {
+            entries: entriez
+        });
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
         // util.log('TAG FILE ' + tagFileName);
         fs.writeFileSync(tagFileName, entryText, {
