@@ -1,0 +1,6 @@
+<%
+    for (var j = 0; j < entries.length; j++) {
+        var entry = entries[j];
+        %><p><a href="<%= entry.url %>"><%= entry.title %></a><%= entry.teaser %></p><%
+    }
+%>
