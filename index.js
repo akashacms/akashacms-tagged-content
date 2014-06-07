@@ -33,6 +33,25 @@ module.exports.config = function(akasha, config) {
     
     config.root_partials.push(path.join(__dirname, 'partials'));
     
+    if (config.mahabhuta) {
+        config.mahabhuta.push(function(config, $, metadata, done) {
+            $('tag-cloud').each(function(i, elem) {
+                genTagCloudData(akasha, config);
+                $(this).replaceWith(
+                    taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
+                        return tagPageUrl(config, tagName);
+                    }, "")
+                );
+            });
+            $('tags-for-document').each(function(i, elem) {
+                $(this).replaceWith(
+                    doTagsForDocument(metadata, "tagged-content-doctags.html.ejs")
+                );
+            });
+            done();
+        });
+    }
+    
     config.funcs.tagCloud = function(arg, callback) {
         genTagCloudData(akasha, config);
         var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
@@ -43,7 +62,7 @@ module.exports.config = function(akasha, config) {
         return val;
     }
     
-    var doTagsForDocument = function(arg, template, callback) {
+    var doTagsForDocument = function(arg, template) {
         var entry = akasha.getFileEntry(config, arg.documentPath);
         var taglist = entryTags(entry);
         
@@ -55,13 +74,14 @@ module.exports.config = function(akasha, config) {
             }
             var val = akasha.partialSync(config, template, { tagz: tagz });
         }
-        if (callback) callback(undefined, val);
         return val;
     }
     
     
     config.funcs.tagsForDocument = function(arg, callback) {
-        return doTagsForDocument(arg, "tagged-content-doctags.html.ejs", callback);
+        var val = doTagsForDocument(arg, "tagged-content-doctags.html.ejs");
+        if (callback) callback(undefined, val);
+        return val;
     }
     
     /* We don't want an xyzzyBootstrap function
