@@ -34,7 +34,7 @@ module.exports.config = function(akasha, config) {
     config.root_partials.push(path.join(__dirname, 'partials'));
     
     if (config.mahabhuta) {
-        config.mahabhuta.push(function(config, $, metadata, done) {
+        config.mahabhuta.push(function(akasha, config, $, metadata, done) {
             $('tag-cloud').each(function(i, elem) {
                 genTagCloudData(akasha, config);
                 $(this).replaceWith(
