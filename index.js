@@ -116,11 +116,13 @@ var tagParse = function(tags) {
 }
 
 var entryTags = function(entry) {
-    if (entry.frontmatter && entry.frontmatter.hasOwnProperty('tags')) {
+    if (entry.frontmatter
+         && entry.frontmatter.hasOwnProperty('yaml')
+         && entry.frontmatter.yaml.hasOwnProperty('tags')) {
         // parse tags
         // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
         // util.log(entry.frontmatter.tags);
-        var taglist = tagParse(entry.frontmatter.tags);
+        var taglist = tagParse(entry.frontmatter.yaml.tags);
         return taglist;
     } else {
         return undefined;
@@ -156,8 +158,8 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         
         // TBD Sort the entries by ...?  Name?  Date?
         tagData.entries.sort(function(a, b) {
-            if (a.frontmatter.title < b.frontmatter.title) return -1;
-            else if (a.frontmatter.title === b.frontmatter.title) return 0;
+            if (a.frontmatter.yaml.title < b.frontmatter.yaml.title) return -1;
+            else if (a.frontmatter.yaml.title === b.frontmatter.yaml.title) return 0;
             else return 1;
         });
         
@@ -170,8 +172,10 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
             var entry = tagData.entries[j];
             entriez.push({
                 url: akasha.urlForFile(entry.path),
-                title: entry.frontmatter.title,
-                teaser: entry.frontmatter.teaser ? entry.frontmatter.teaser : ""
+                title: entry.frontmatter.yaml.title,
+                teaser: entry.frontmatter.yaml.teaser
+                      ? entry.frontmatter.yaml.teaser
+                      : ""
             });
         }
         entryText += akasha.partialSync(config, "tagged-content-tagpagelist.html.ejs", {
