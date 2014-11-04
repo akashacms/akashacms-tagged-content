@@ -20,6 +20,7 @@
 var path     = require('path');
 var util     = require('util');
 var fs       = require('fs');
+var async    = require('async');
 var taggen   = require('tagcloud-generator');
 var Tempdir  = require('temporary/lib/dir');
 
@@ -35,6 +36,7 @@ module.exports.config = function(akasha, config) {
     
     if (config.mahabhuta) {
         config.mahabhuta.push(function(akasha, config, $, metadata, done) {
+        	// util.log('tagged-content <tag-cloud>');
             $('tag-cloud').each(function(i, elem) {
                 genTagCloudData(akasha, config);
                 $(this).replaceWith(
@@ -43,12 +45,28 @@ module.exports.config = function(akasha, config) {
                     }, "")
                 );
             });
-            $('tags-for-document').each(function(i, elem) {
-                $(this).replaceWith(
-                    doTagsForDocument(metadata, "tagged-content-doctags.html.ejs")
-                );
-            });
             done();
+        });
+        config.mahabhuta.push(function(akasha, config, $, metadata, done) {
+        	// util.log('tagged-content <tag-for-document>');
+        	var tfds = [];
+            $('tags-for-document').each(function(i, elem) { tfds.push(elem); });
+            async.each(tfds,
+            	function(tfd, cb) {
+            		if (tfd)
+						doTagsForDocument(metadata, "tagged-content-doctags.html.ejs", function(err, tags) {
+							if (err) cb(err);
+							else {
+								$(tfd).replaceWith(tags);
+								cb();
+							}
+						});
+					else cb();
+            	},
+            	function(err) {
+            		if (err) done(err);
+            		else done();
+            	});
         });
     }
     
@@ -62,26 +80,32 @@ module.exports.config = function(akasha, config) {
         return val;
     }
     
-    var doTagsForDocument = function(arg, template) {
-        var entry = akasha.getFileEntry(config, arg.documentPath);
-        var taglist = entryTags(entry);
-        
-        var val = "";
-        if (taglist) {
-            var tagz = [];
-            for (var i = 0; i < taglist.length; i++) {
-                tagz.push({ tagName: taglist[i], tagUrl: tagPageUrl(config, taglist[i]) });
-            }
-            var val = akasha.partialSync(config, template, { tagz: tagz });
-        }
-        return val;
+    var doTagsForDocument = function(arg, template, done) {
+        akasha.readDocumentEntry(config, arg.documentPath, function(err, entry) {
+        	if (err) done(err);
+        	else {
+				var taglist = entryTags(entry);
+		
+				var val = "";
+				if (taglist) {
+					var tagz = [];
+					for (var i = 0; i < taglist.length; i++) {
+						tagz.push({
+							tagName: taglist[i], 
+							tagUrl: tagPageUrl(config, taglist[i]) 
+						});
+					}
+					val = akasha.partialSync(config, template, { tagz: tagz });
+				}
+				done(undefined, val);
+			}
+        });
     }
     
     
     config.funcs.tagsForDocument = function(arg, callback) {
-        var val = doTagsForDocument(arg, "tagged-content-doctags.html.ejs");
-        if (callback) callback(undefined, val);
-        return val;
+    	throw new Error("do not call tagsForDocument - use <tags-for-document>");
+        doTagsForDocument(arg, "tagged-content-doctags.html.ejs", callback);
     }
     
     /* We don't want an xyzzyBootstrap function

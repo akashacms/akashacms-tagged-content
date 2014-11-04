@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git://github.com/robogeek/akashacms-tagged-content.git"
   },
-  "version": "0.1.10",
+  "version": "0.1.11",
   "engines": {
     "node": ">=0.10.1"
   },
