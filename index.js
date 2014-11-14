@@ -142,6 +142,7 @@ var tagParse = function(tags) {
 var entryTags = function(entry) {
     if (entry.frontmatter
          && entry.frontmatter.hasOwnProperty('yaml')
+         && entry.frontmatter.yaml
          && entry.frontmatter.yaml.hasOwnProperty('tags')) {
         // parse tags
         // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
