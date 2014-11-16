@@ -133,7 +133,7 @@ var tagPageUrl = function(config, tagName) {
 var tagParse = function(tags) {
     var taglist = [];
     var re = /\s*,\s*/;
-    tags.split(re).forEach(function(tag) {
+    if (tags) tags.split(re).forEach(function(tag) {
         taglist.push(tag.trim());
     });
     return taglist;
