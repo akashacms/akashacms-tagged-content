@@ -35,7 +35,7 @@ module.exports.config = function(akasha, config) {
     config.root_partials.push(path.join(__dirname, 'partials'));
     
     if (config.mahabhuta) {
-        config.mahabhuta.push(function(akasha, config, $, metadata, done) {
+        config.mahabhuta.push(function($, metadata, done) {
         	// util.log('tagged-content <tag-cloud>');
             $('tag-cloud').each(function(i, elem) {
                 genTagCloudData(akasha, config);
@@ -47,7 +47,7 @@ module.exports.config = function(akasha, config) {
             });
             done();
         });
-        config.mahabhuta.push(function(akasha, config, $, metadata, done) {
+        config.mahabhuta.push(function($, metadata, done) {
         	// util.log('tagged-content <tag-for-document>');
         	var tfds = [];
             $('tags-for-document').each(function(i, elem) { tfds.push(elem); });
