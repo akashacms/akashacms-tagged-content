@@ -95,7 +95,7 @@ module.exports.config = function(akasha, config) {
 							tagUrl: tagPageUrl(config, taglist[i]) 
 						});
 					}
-					val = akasha.partialSync(config, template, { tagz: tagz });
+					val = akasha.partialSync(template, { tagz: tagz });
 				}
 				done(undefined, val);
 			}
@@ -203,7 +203,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
                       : ""
             });
         }
-        entryText += akasha.partialSync(config, "tagged-content-tagpagelist.html.ejs", {
+        entryText += akasha.partialSync("tagged-content-tagpagelist.html.ejs", {
             entries: entriez
         });
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
