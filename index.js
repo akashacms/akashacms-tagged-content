@@ -27,10 +27,14 @@ var Tempdir  = require('temporary/lib/dir');
 var tagCloudData = undefined;
 var tempDir      = undefined;
 
+var logger;
+
 /**
  * Add ourselves to the config data.
  **/
 module.exports.config = function(akasha, config) {
+
+	logger = akasha.getLogger("tagged-content");
     
     config.root_partials.push(path.join(__dirname, 'partials'));
     
