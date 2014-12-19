@@ -174,6 +174,18 @@ var tag2encode4url = function(tagName) {
         .replace(/&/g, '-');
 }
 
+var sortByTitle = function(a,b) {
+	if (a.frontmatter.yaml.title < b.frontmatter.yaml.title) return -1;
+	else if (a.frontmatter.yaml.title === b.frontmatter.yaml.title) return 0;
+	else return 1;
+};
+
+var sortByDate = function(a,b) {
+	if (a.stat.mtime < b.stat.mtime) return -1;
+	else if (a.stat.mtime === b.stat.mtime) return 0;
+	else return 1;
+};
+
 module.exports.generateTagIndexes = function(akasha, config, cb) {
     genTagCloudData(akasha, config);
     tempDir = new Tempdir;
@@ -185,12 +197,13 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         var tagData = tagCloudData.tagData[tagnm];
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         
-        // TBD Sort the entries by ...?  Name?  Date?
-        tagData.entries.sort(function(a, b) {
-            if (a.frontmatter.yaml.title < b.frontmatter.yaml.title) return -1;
-            else if (a.frontmatter.yaml.title === b.frontmatter.yaml.title) return 0;
-            else return 1;
-        });
+        if (config.tags.sortBy === 'date') {
+        	tagData.entries.sort(sortByDate);
+        } else if (config.tags.sortBy === 'title') {
+        	tagData.entries.sort(sortByTitle);
+        } else {
+        	tagData.entries.sort(sortByTitle);
+        };
         
         var entryText = config.tags.header
             .replace("@title@", tagData.tagName)
@@ -204,14 +217,58 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
                 title: entry.frontmatter.yaml.title,
                 teaser: entry.frontmatter.yaml.teaser
                       ? entry.frontmatter.yaml.teaser
-                      : ""
+                      : "",
+				youtubeThumbnail: entry.frontmatter.yaml.youtubeThumbnail
+					   ? entry.frontmatter.yaml.youtubeThumbnail
+					   : undefined
             });
         }
-        entryText += akasha.partialSync("tagged-content-tagpagelist.html.ejs", {
+        
+        // Optionally generate an RSS feed for the tag page
+        var rsslink = "";
+        if (config.rss) {
+        	// logger.trace(tagnm +' writing RSS');
+			// Ensure it's sorted by date
+			if (config.tags.sortBy
+			 && config.tags.sortBy !== 'date')
+			 		tagData.entries.sort(sortByDate);
+		
+			var rssitems = [];
+			for (var q = 0; q < tagData.entries.length; q++) {
+				var entry = tagData.entries[q];
+				rssitems.push({
+					title: entry.frontmatter.yaml.title,
+					description: entry.frontmatter.yaml.teaser // TBD what about supporting full feeds?
+						  ? entry.frontmatter.yaml.teaser
+						  : "",
+					url: config.root_url +'/'+ entry.renderedFileName,
+					date: entry.frontmatter.yaml.publicationDate
+						? entry.frontmatter.yaml.publicationDate
+						: entry.stat.mtime
+				});
+			}
+        	// logger.trace(tagnm +' rss feed entry count='+ rssitems.length);
+		
+			var feedRenderTo = path.join(config.tags.pathIndexes, tagNameEncoded +".xml");
+        	logger.trace(tagnm +' writing RSS to '+ feedRenderTo);
+		
+			akasha.generateRSS(config, {
+					feed_url: config.root_url + feedRenderTo,
+					pubDate: new Date()
+				},
+				rssitems, feedRenderTo,	function(err) {
+					if (err) logger.error(err);
+				});
+				
+			rsslink = '<a href="'+ feedRenderTo +'"><img src="/img/rss_button.gif" align="right" width="50"></a>';
+        }
+        		
+        // logger.trace(tagnm +' tag entry count='+ entriez.length);
+        entryText += rsslink + akasha.partialSync("tagged-content-tagpagelist.html.ejs", {
             entries: entriez
         });
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
-        // util.log('TAG FILE ' + tagFileName);
+        // logger.trace(tagnm +' writing to '+ tagFileName);
         fs.writeFileSync(tagFileName, entryText, {
             encoding: 'utf8'
         });
