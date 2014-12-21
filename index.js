@@ -181,8 +181,14 @@ var sortByTitle = function(a,b) {
 };
 
 var sortByDate = function(a,b) {
-	if (a.stat.mtime < b.stat.mtime) return -1;
-	else if (a.stat.mtime === b.stat.mtime) return 0;
+	var aPublicationDate = Date.parse(
+			a.frontmatter.yaml.publicationDate ? a.frontmatter.yaml.publicationDate : a.stat.mtime
+	);
+	var bPublicationDate = Date.parse(
+			b.frontmatter.yaml.publicationDate ? b.frontmatter.yaml.publicationDate : b.stat.mtime
+	);
+	if (aPublicationDate < bPublicationDate) return -1;
+	else if (aPublicationDate === bPublicationDate) return 0;
 	else return 1;
 };
 
@@ -199,6 +205,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         
         if (config.tags.sortBy === 'date') {
         	tagData.entries.sort(sortByDate);
+        	tagData.entries.reverse();
         } else if (config.tags.sortBy === 'title') {
         	tagData.entries.sort(sortByTitle);
         } else {
@@ -229,9 +236,8 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         if (config.rss) {
         	// logger.trace(tagnm +' writing RSS');
 			// Ensure it's sorted by date
-			if (config.tags.sortBy
-			 && config.tags.sortBy !== 'date')
-			 		tagData.entries.sort(sortByDate);
+	 		tagData.entries.sort(sortByDate);
+	 		tagData.entries.reverse();
 		
 			var rssitems = [];
 			for (var q = 0; q < tagData.entries.length; q++) {
@@ -260,13 +266,17 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
 					if (err) logger.error(err);
 				});
 				
-			rsslink = '<a href="'+ feedRenderTo +'"><img src="/img/rss_button.gif" align="right" width="50"></a>';
+			rsslink = '<a href="'+ feedRenderTo +'"><img src="/img/rss_button.gif" align="right" width="50"/></a>';
         }
         		
         // logger.trace(tagnm +' tag entry count='+ entriez.length);
-        entryText += rsslink + akasha.partialSync("tagged-content-tagpagelist.html.ejs", {
+        entryText += akasha.partialSync("tagged-content-tagpagelist.html.ejs", {
             entries: entriez
         });
+        if (rsslink !== "") {
+			entryText += '<div>' + rsslink + '</div>';
+			entryText += '<rss-header-meta href="'+ config.root_url + feedRenderTo +'"></rss-header-meta>';
+        }
         var tagFileName = path.join(tagsDir, tagNameEncoded +".html.ejs");
         // logger.trace(tagnm +' writing to '+ tagFileName);
         fs.writeFileSync(tagFileName, entryText, {
