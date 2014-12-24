@@ -211,8 +211,11 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
                 teaser: entry.frontmatter.yaml.teaser
                       ? entry.frontmatter.yaml.teaser
                       : "",
-				youtubeThumbnail: entry.frontmatter.yaml.youtubeThumbnail
-					   ? entry.frontmatter.yaml.youtubeThumbnail
+				videoThumbnail: entry.frontmatter.yaml.videoThumbnail
+					   ? entry.frontmatter.yaml.videoThumbnail
+					   : undefined,
+				publicationDate: entry.frontmatter.yaml.publicationDate
+					   ? entry.frontmatter.yaml.publicationDate
 					   : undefined
             });
         }
