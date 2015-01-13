@@ -25,6 +25,7 @@ var taggen   = require('tagcloud-generator');
 var Tempdir  = require('temporary/lib/dir');
 
 var tagCloudData = undefined;
+var tagCloud;
 var tempDir      = undefined;
 
 var logger;
@@ -43,11 +44,11 @@ module.exports.config = function(akasha, config) {
         	// util.log('tagged-content <tag-cloud>');
             $('tag-cloud').each(function(i, elem) {
                 genTagCloudData(akasha, config);
-                $(this).replaceWith(
-                    taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
+                if (!tagCloud)
+                	tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
                         return tagPageUrl(config, tagName);
-                    }, "")
-                );
+                    }, "");
+                $(this).replaceWith(tagCloud);
             });
             done();
         });
@@ -74,15 +75,17 @@ module.exports.config = function(akasha, config) {
         });
     }
     
-    config.funcs.tagCloud = function(arg, callback) {
+    /* config.funcs.tagCloud = function(arg, callback) {
         genTagCloudData(akasha, config);
-        var val = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
-            return tagPageUrl(config, tagName);
-        }, "");
+		if (!tagCloud)
+			tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
+				return tagPageUrl(config, tagName);
+			}, "");
+        var val = tagCloud;
         // util.log('tagCloud ' + val);
         if (callback) callback(undefined, val);
         return val;
-    }
+    } */
     
     var doTagsForDocument = function(arg, template, done) {
         akasha.readDocumentEntry(config, arg.documentPath, function(err, entry) {
