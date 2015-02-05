@@ -28,52 +28,21 @@ var tagCloudData = undefined;
 var tagCloud;
 var tempDir      = undefined;
 
+var akasha;
+var config;
 var logger;
+
 
 /**
  * Add ourselves to the config data.
  **/
-module.exports.config = function(akasha, config) {
+module.exports.config = function(_akasha, _config) {
+	akasha = _akasha;
+	config = _config;
 
 	logger = akasha.getLogger("tagged-content");
     
     config.root_partials.push(path.join(__dirname, 'partials'));
-    
-    if (config.mahabhuta) {
-        config.mahabhuta.push(function($, metadata, dirty, done) {
-        	// util.log('tagged-content <tag-cloud>');
-            $('tag-cloud').each(function(i, elem) {
-                genTagCloudData(akasha, config);
-                if (!tagCloud)
-                	tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
-                        return tagPageUrl(config, tagName);
-                    }, "");
-                $(this).replaceWith(tagCloud);
-            });
-            done();
-        });
-        config.mahabhuta.push(function($, metadata, dirty, done) {
-        	// util.log('tagged-content <tag-for-document>');
-        	var tfds = [];
-            $('tags-for-document').each(function(i, elem) { tfds.push(elem); });
-            async.each(tfds,
-            	function(tfd, cb) {
-            		if (tfd)
-						doTagsForDocument(metadata, "tagged-content-doctags.html.ejs", function(err, tags) {
-							if (err) cb(err);
-							else {
-								$(tfd).replaceWith(tags);
-								cb();
-							}
-						});
-					else cb();
-            	},
-            	function(err) {
-            		if (err) done(err);
-            		else done();
-            	});
-        });
-    }
     
     /* config.funcs.tagCloud = function(arg, callback) {
         genTagCloudData(akasha, config);
@@ -117,7 +86,45 @@ module.exports.config = function(akasha, config) {
         // fs.rmdirSync(tempDir.path);
         cb();
     });
-}
+	return module.exports;
+};
+
+module.exports.mahabhuta = [
+	function($, metadata, dirty, done) {
+		// util.log('tagged-content <tag-cloud>');
+		$('tag-cloud').each(function(i, elem) {
+			genTagCloudData(akasha, config);
+			if (!tagCloud)
+				tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
+					return tagPageUrl(config, tagName);
+				}, "");
+			$(this).replaceWith(tagCloud);
+		});
+		done();
+	},
+	
+	function($, metadata, dirty, done) {
+		// util.log('tagged-content <tag-for-document>');
+		var tfds = [];
+		$('tags-for-document').each(function(i, elem) { tfds.push(elem); });
+		async.each(tfds,
+			function(tfd, cb) {
+				if (tfd)
+					doTagsForDocument(metadata, "tagged-content-doctags.html.ejs", function(err, tags) {
+						if (err) cb(err);
+						else {
+							$(tfd).replaceWith(tags);
+							cb();
+						}
+					});
+				else cb();
+			},
+			function(err) {
+				if (err) done(err);
+				else done();
+			});
+	}
+];
 
 var tagPageUrl = function(config, tagName) {
     return config.tags.pathIndexes + tag2encode4url(tagName) +'.html';
