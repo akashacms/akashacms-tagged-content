@@ -56,25 +56,6 @@ module.exports.config = function(_akasha, _config) {
         return val;
     } */
     
-    var doTagsForDocument = function(arg, template, done) {
-        akasha.readDocumentEntry(config, arg.documentPath, function(err, entry) {
-        	if (err) done(err);
-        	else {
-				var taglist = entryTags(entry);
-				if (taglist) {
-					var tagz = [];
-					for (var i = 0; i < taglist.length; i++) {
-						tagz.push({
-							tagName: taglist[i], 
-							tagUrl: tagPageUrl(config, taglist[i]) 
-						});
-					}
-					akasha.partial(template, { tagz: tagz }, done);
-				} else done(undefined, "");
-			}
-        });
-    }
-    
     akasha.emitter.on('before-render-files', function(cb) {
         logger.info('before-render-files received');
         module.exports.generateTagIndexes(akasha, config, function(err) {
@@ -87,6 +68,25 @@ module.exports.config = function(_akasha, _config) {
         cb();
     });
 	return module.exports;
+};
+
+var doTagsForDocument = function(arg, template, done) {
+	akasha.readDocumentEntry(config, arg.documentPath, function(err, entry) {
+		if (err) done(err);
+		else {
+			var taglist = entryTags(entry);
+			if (taglist) {
+				var tagz = [];
+				for (var i = 0; i < taglist.length; i++) {
+					tagz.push({
+						tagName: taglist[i], 
+						tagUrl: tagPageUrl(config, taglist[i]) 
+					});
+				}
+				akasha.partial(template, { tagz: tagz }, done);
+			} else done(undefined, "");
+		}
+	});
 };
 
 module.exports.mahabhuta = [
