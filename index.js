@@ -44,18 +44,6 @@ module.exports.config = function(_akasha, _config) {
     
     config.root_partials.push(path.join(__dirname, 'partials'));
     
-    /* config.funcs.tagCloud = function(arg, callback) {
-        genTagCloudData(akasha, config);
-		if (!tagCloud)
-			tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
-				return tagPageUrl(config, tagName);
-			}, "");
-        var val = tagCloud;
-        // util.log('tagCloud ' + val);
-        if (callback) callback(undefined, val);
-        return val;
-    } */
-    
     akasha.emitter.on('before-render-files', function(cb) {
         logger.info('before-render-files received');
         module.exports.generateTagIndexes(akasha, config, function(err) {
