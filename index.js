@@ -180,23 +180,23 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
     genTagCloudData(akasha, config);
     tempDir = new Tempdir;
     config.root_docs.push(tempDir.path);
-    var tagsDir = path.join(tempDir.path, config.tags.pathIndexes);
+    var tagsDir = path.join(tempDir.path, config.taggedContent.pathIndexes);
     fs.mkdirSync(tagsDir);
 
     for (tagnm in tagCloudData.tagData) {
         var tagData = tagCloudData.tagData[tagnm];
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         
-        if (config.tags.sortBy === 'date') {
+        if (config.taggedContent.sortBy === 'date') {
         	tagData.entries.sort(sortByDate);
         	tagData.entries.reverse();
-        } else if (config.tags.sortBy === 'title') {
+        } else if (config.taggedContent.sortBy === 'title') {
         	tagData.entries.sort(sortByTitle);
         } else {
         	tagData.entries.sort(sortByTitle);
         };
         
-        var entryText = config.tags.header
+        var entryText = config.taggedContent.header
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
             
@@ -244,10 +244,10 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
 			}
         	// logger.trace(tagnm +' rss feed entry count='+ rssitems.length);
 		
-			var feedRenderTo = path.join(config.tags.pathIndexes, tagNameEncoded +".xml");
+			var feedRenderTo = path.join(config.taggedContent.pathIndexes, tagNameEncoded +".xml");
         	logger.trace(tagnm +' writing RSS to '+ feedRenderTo);
 		
-			akasha.generateRSS(config, {
+			akasha.generateRSS(config, config.rss, {
 					feed_url: config.root_url + feedRenderTo,
 					pubDate: new Date()
 				},
