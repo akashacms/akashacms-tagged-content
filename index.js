@@ -115,7 +115,7 @@ module.exports.mahabhuta = [
 ];
 
 var tagPageUrl = function(config, tagName) {
-    return config.tags.pathIndexes + tag2encode4url(tagName) +'.html';
+    return config.taggedContent.pathIndexes + tag2encode4url(tagName) +'.html';
 }
 
 var tagParse = function(tags) {
