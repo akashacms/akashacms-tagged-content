@@ -24,9 +24,9 @@ var async    = require('async');
 var taggen   = require('tagcloud-generator');
 var Tempdir  = require('temporary/lib/dir');
 
-var tagCloudData = undefined;
+var tagCloudData;
 var tagCloud;
-var tempDir      = undefined;
+var tempDir;
 
 var akasha;
 var config;
@@ -59,7 +59,7 @@ module.exports.config = function(_akasha, _config) {
 };
 
 var doTagsForDocument = function(arg, template, done) {
-	akasha.readDocumentEntry(config, arg.documentPath, function(err, entry) {
+	akasha.readDocumentEntry(arg.documentPath, function(err, entry) {
 		if (err) done(err);
 		else {
 			var taglist = entryTags(entry);
@@ -176,6 +176,10 @@ var sortByDate = function(a,b) {
 	else return 1;
 };
 
+function noteError(err) {
+	if (err) logger.error(err);
+}
+
 module.exports.generateTagIndexes = function(akasha, config, cb) {
     genTagCloudData(akasha, config);
     tempDir = new Tempdir;
@@ -183,7 +187,9 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
     var tagsDir = path.join(tempDir.path, config.taggedContent.pathIndexes);
     fs.mkdirSync(tagsDir);
 
-    for (tagnm in tagCloudData.tagData) {
+    for (var tagnm in tagCloudData.tagData) {
+        var feedRenderTo;
+        var entry;
         var tagData = tagCloudData.tagData[tagnm];
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         
@@ -194,7 +200,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         	tagData.entries.sort(sortByTitle);
         } else {
         	tagData.entries.sort(sortByTitle);
-        };
+        }
         
         var entryText = config.taggedContent.header
             .replace("@title@", tagData.tagName)
@@ -202,7 +208,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
             
         var entriez = [];
         for (var j = 0; j < tagData.entries.length; j++) {
-            var entry = tagData.entries[j];
+            entry = tagData.entries[j];
             entriez.push({
                 url: akasha.urlForFile(entry.path),
                 title: entry.frontmatter.yaml.title,
@@ -230,7 +236,7 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
 		
 			var rssitems = [];
 			for (var q = 0; q < tagData.entries.length; q++) {
-				var entry = tagData.entries[q];
+				entry = tagData.entries[q];
 				rssitems.push({
 					title: entry.frontmatter.yaml.title,
 					description: entry.frontmatter.yaml.teaser // TBD what about supporting full feeds?
@@ -244,16 +250,14 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
 			}
         	// logger.trace(tagnm +' rss feed entry count='+ rssitems.length);
 		
-			var feedRenderTo = path.join(config.taggedContent.pathIndexes, tagNameEncoded +".xml");
+			feedRenderTo = path.join(config.taggedContent.pathIndexes, tagNameEncoded +".xml");
         	logger.trace(tagnm +' writing RSS to '+ feedRenderTo);
 		
-			akasha.generateRSS(config, config.rss, {
+			akasha.generateRSS(config.rss, {
 					feed_url: config.root_url + feedRenderTo,
 					pubDate: new Date()
 				},
-				rssitems, feedRenderTo,	function(err) {
-					if (err) logger.error(err);
-				});
+				rssitems, feedRenderTo,	noteError);
 				
 			rsslink = '<a href="'+ feedRenderTo +'"><img src="/img/rss_button.gif" align="right" width="50"/></a>';
         }
@@ -273,17 +277,17 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
         });
     }
     
-    akasha.gatherDir(config, tempDir.path, function(err) {
+    akasha.gatherDir(tempDir.path, function(err) {
         if (err) cb(err); else cb();
     });
-}
+};
 
 var genTagCloudData = function(akasha, config) {
     if (!tagCloudData) {
         tagCloudData = {
             tagData: []
         };
-        akasha.eachDocument(config, function(entry) {
+        akasha.eachDocument(function(entry) {
             // logger.trace('eachDocument '+ entry.path);
             var taglist = entryTags(entry);
             if (taglist) {
@@ -303,11 +307,11 @@ var genTagCloudData = function(akasha, config) {
             else if (a.tagName === b.tagName) return 0;
             else return 1;
         });*/
-        for (tagnm in tagCloudData.tagData) {
+        for (var tagnm in tagCloudData.tagData) {
             tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
             logger.trace(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
         }
         taggen.generateFontSizes(tagCloudData.tagData);
         // util.log(util.inspect(tagCloudData));
     }
-}
+};
