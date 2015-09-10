@@ -129,9 +129,9 @@ var tagParse = function(tags) {
 
 var entryTags = function(entry) {
     if (entry.frontmatter
-         && entry.frontmatter.hasOwnProperty('yaml')
-         && entry.frontmatter.yaml
-         && entry.frontmatter.yaml.hasOwnProperty('tags')) {
+     && entry.frontmatter.hasOwnProperty('yaml')
+     && entry.frontmatter.yaml
+     && entry.frontmatter.yaml.hasOwnProperty('tags')) {
         // parse tags
         // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
         // util.log(entry.frontmatter.tags);
@@ -166,10 +166,14 @@ var sortByTitle = function(a,b) {
 
 var sortByDate = function(a,b) {
 	var aPublicationDate = Date.parse(
-			a.frontmatter.yaml.publicationDate ? a.frontmatter.yaml.publicationDate : a.stat.mtime
+		a.frontmatter.yaml.publicationDate
+			? a.frontmatter.yaml.publicationDate
+			: a.stat.mtime
 	);
 	var bPublicationDate = Date.parse(
-			b.frontmatter.yaml.publicationDate ? b.frontmatter.yaml.publicationDate : b.stat.mtime
+		b.frontmatter.yaml.publicationDate
+			? b.frontmatter.yaml.publicationDate
+			: b.stat.mtime
 	);
 	if (aPublicationDate < bPublicationDate) return -1;
 	else if (aPublicationDate === bPublicationDate) return 0;
@@ -215,6 +219,13 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
                 teaser: entry.frontmatter.yaml.teaser
                       ? entry.frontmatter.yaml.teaser
                       : "",
+                teaserThumb:
+						entry.frontmatter.yaml.teaserthumb
+                      ? entry.frontmatter.yaml.teaserthumb
+                      : "",
+				youtubeThumbnail: entry.frontmatter.yaml.youtubeThumbnail
+					   ? entry.frontmatter.yaml.youtubeThumbnail
+					   : undefined,
 				videoThumbnail: entry.frontmatter.yaml.videoThumbnail
 					   ? entry.frontmatter.yaml.videoThumbnail
 					   : undefined,
@@ -241,6 +252,10 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
 					title: entry.frontmatter.yaml.title,
 					description: entry.frontmatter.yaml.teaser // TBD what about supporting full feeds?
 						  ? entry.frontmatter.yaml.teaser
+						  : "",
+					teaserThumb:
+							entry.frontmatter.yaml.teaserthumb
+						  ? entry.frontmatter.yaml.teaserthumb
 						  : "",
 					url: config.root_url +'/'+ entry.renderedFileName,
 					date: entry.frontmatter.yaml.publicationDate
