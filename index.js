@@ -17,78 +17,89 @@
  *  limitations under the License.
  */
 
-var path     = require('path');
-var util     = require('util');
-var fs       = require('fs');
-var async    = require('async');
-var taggen   = require('tagcloud-generator');
-var Tempdir  = require('temporary/lib/dir');
+'use strict';
 
-var tagCloudData;
-var tagCloud;
-var tempDir;
+const path     = require('path');
+const util     = require('util');
+const fs       = require('fs-extra');
+const async    = require('async');
+const taggen   = require('tagcloud-generator');
+const tmp      = require('temporary');
+const akasha   = require('akasharender');
 
-var akasha;
-var config;
-var logger;
+const log   = require('debug')('akasha:tagged-content-plugin');
+const error = require('debug')('akasha:error-tagged-content-plugin');
 
-
-/**
- * Add ourselves to the config data.
- **/
-module.exports.config = function(_akasha, _config) {
-	akasha = _akasha;
-	config = _config;
-
-	logger = akasha.getLogger("tagged-content");
-    
-    config.root_partials.push(path.join(__dirname, 'partials'));
-    
-    akasha.emitter.on('before-render-files', function(cb) {
-        logger.info('before-render-files received');
-        module.exports.generateTagIndexes(akasha, config, function(err) {
-            if (err) cb(err); else cb();
-        });
-    });
-    akasha.emitter.on('done-render-files', function(cb) {
-        logger.info('done-render-files received');
-        // fs.rmdirSync(tempDir.path);
-        cb();
-    });
-	return module.exports;
+module.exports = class TaggedContentPlugin extends akasha.Plugin {
+	constructor() {
+		super("akashacms-tagged-content");
+	}
+	
+	configure(config) {
+		this._config = config;
+		config.addPartialsDir(path.join(__dirname, 'partials'));
+		config.addMahabhuta(module.exports.mahabhuta);
+	}
+	
+	sortBy(sort) {
+		if (!this._config.taggedContent) this._config.taggedContent = {};
+		this._config.taggedContent.sortBy = sort;
+		return this;
+	}
+	
+	headerTemplate(template) {
+		if (!this._config.taggedContent) this._config.taggedContent = {};
+		this._config.taggedContent.headerTemplate = template;
+		return this;
+	}
+	
+	tagsDirectory(dirName) {
+		if (!this._config.taggedContent) this._config.taggedContent = {};
+		this._config.taggedContent.pathIndexes = dirName;
+		return this;
+	}
+	
+	onSiteRendered(config) {
+		return module.exports.generateTagIndexes(config);
+	}
 };
 
-var doTagsForDocument = function(arg, template, done) {
-	akasha.readDocumentEntry(arg.documentPath, function(err, entry) {
-		if (err) done(err);
-		else {
-			var taglist = entryTags(entry);
-			if (taglist) {
-				var tagz = [];
-				for (var i = 0; i < taglist.length; i++) {
-					tagz.push({
-						tagName: taglist[i], 
-						tagUrl: tagPageUrl(config, taglist[i]) 
-					});
-				}
-				akasha.partial(template, { tagz: tagz }, done);
-			} else done(undefined, "");
-		}
-	});
+
+function doTagsForDocument(config, metadata, template) {
+	var taglist = documentTags({ metadata: metadata });
+	if (taglist) {
+		// log('doTagsForDocument '+ util.inspect(taglist));
+		return akasha.partial(config, template, {
+			tagz: taglist.map(tag => {
+				return {
+					tagName: tag,
+					tagUrl: tagPageUrl(config, tag)
+				};
+			})
+		});
+	} else return Promise.resolve("");
 };
 
 module.exports.mahabhuta = [
 	function($, metadata, dirty, done) {
 		// util.log('tagged-content <tag-cloud>');
-		$('tag-cloud').each(function(i, elem) {
-			genTagCloudData(akasha, config);
-			if (!tagCloud)
-				tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, function(tagName) {
-					return tagPageUrl(config, tagName);
+		var elements = [];
+		$('tag-cloud').each(function(i, elem) { elements.push(elem); });
+		async.each(elements, (element, cb) => {
+			genTagCloudData(metadata.config)
+			.then(tagCloudData => {
+				var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
+					return tagPageUrl(metadata.config, tagName);
 				}, "");
-			$(this).replaceWith(tagCloud);
+				$(element).replaceWith(tagCloud);
+				cb();
+			})
+			.catch(err => { cb(err); });
+		},
+		err => {
+			if (err) done(err);
+			else done();
 		});
-		done();
 	},
 	
 	function($, metadata, dirty, done) {
@@ -96,21 +107,21 @@ module.exports.mahabhuta = [
 		var tfds = [];
 		$('tags-for-document').each(function(i, elem) { tfds.push(elem); });
 		async.each(tfds,
-			function(tfd, cb) {
-				if (tfd)
-					doTagsForDocument(metadata, "tagged-content-doctags.html.ejs", function(err, tags) {
-						if (err) cb(err);
-						else {
-							$(tfd).replaceWith(tags);
-							cb();
-						}
-					});
-				else cb();
-			},
-			function(err) {
-				if (err) done(err);
-				else done();
-			});
+		(tfd, cb) => {
+			if (tfd) {
+				doTagsForDocument(metadata.config, metadata, "tagged-content-doctags.html.ejs")
+				.then(tags => {
+					// log('tags-for-document '+ metadata.tags +' '+ tags);
+					$(tfd).replaceWith(tags);
+					cb();
+				})
+				.catch(err => { cb(err); });
+			} else cb();
+		},
+		err => {
+			if (err) done(err);
+			else done();
+		});
 	}
 ];
 
@@ -127,15 +138,13 @@ var tagParse = function(tags) {
     return taglist;
 }
 
-var entryTags = function(entry) {
-    if (entry.frontmatter
-     && entry.frontmatter.hasOwnProperty('yaml')
-     && entry.frontmatter.yaml
-     && entry.frontmatter.yaml.hasOwnProperty('tags')) {
+var documentTags = function(document) {
+	// log('documentTags '+ util.inspect(document.metadata));
+    if (document.metadata && document.metadata.tags) {
         // parse tags
         // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
         // util.log(entry.frontmatter.tags);
-        var taglist = tagParse(entry.frontmatter.yaml.tags);
+        var taglist = tagParse(document.metadata.tags);
         return taglist;
     } else {
         return undefined;
@@ -159,21 +168,17 @@ var tag2encode4url = function(tagName) {
 }
 
 var sortByTitle = function(a,b) {
-	if (a.frontmatter.yaml.title < b.frontmatter.yaml.title) return -1;
-	else if (a.frontmatter.yaml.title === b.frontmatter.yaml.title) return 0;
+	if (a.metadata.title < b.metadata.title) return -1;
+	else if (a.metadata.title === b.metadata.title) return 0;
 	else return 1;
 };
 
 var sortByDate = function(a,b) {
 	var aPublicationDate = Date.parse(
-		a.frontmatter.yaml.publicationDate
-			? a.frontmatter.yaml.publicationDate
-			: a.stat.mtime
+		a.metadata.publicationDate ? a.metadata.publicationDate : a.stat.mtime
 	);
 	var bPublicationDate = Date.parse(
-		b.frontmatter.yaml.publicationDate
-			? b.frontmatter.yaml.publicationDate
-			: b.stat.mtime
+		b.metadata.publicationDate ? b.metadata.publicationDate : b.stat.mtime
 	);
 	if (aPublicationDate < bPublicationDate) return -1;
 	else if (aPublicationDate === bPublicationDate) return 0;
@@ -181,12 +186,78 @@ var sortByDate = function(a,b) {
 };
 
 function noteError(err) {
-	if (err) logger.error(err);
+	if (err) error(err);
 }
 
-module.exports.generateTagIndexes = function(akasha, config, cb) {
-    genTagCloudData(akasha, config);
-    tempDir = new Tempdir;
+module.exports.generateTagIndexes = function(config) {
+    var tempDir = new tmp.Dir();
+    var tagsDir = path.join(tempDir.path, config.taggedContent.pathIndexes);
+	log('generateTagIndexes '+ tagsDir);
+    return new Promise((resolve, reject) => {
+		fs.mkdir(tagsDir, err => {
+			if (err) reject(err);
+			else resolve();
+		});
+	})
+	.then(() => { return genTagCloudData(config); })
+	.then(tagCloudData => {
+		
+		// log(util.inspect(tagCloudData));
+		
+		return new Promise((resolve, reject) => {
+			async.eachSeries(tagCloudData.tagData,
+			(tagData, next) => {
+				
+				// log(util.inspect(tagData));
+				var tagNameEncoded = tag2encode4url(tagData.tagName);
+				var tagFileName = tagNameEncoded +".html.ejs";
+				
+				if (config.taggedContent.sortBy === 'date') {
+					tagData.entries.sort(sortByDate);
+					tagData.entries.reverse();
+				} else if (config.taggedContent.sortBy === 'title') {
+					tagData.entries.sort(sortByTitle);
+				} else {
+					tagData.entries.sort(sortByTitle);
+				}
+				
+				akasha.partial(config, "tagged-content-tagpagelist.html.ejs", { entries: tagData.entries })
+				.then(text2write => {
+					
+					var entryText = config.taggedContent.headerTemplate
+						.replace("@title@", tagData.tagName)
+						.replace("@tagName@", tagData.tagName);
+					entryText += text2write;
+				
+					return new Promise((resolve, reject) => {
+						fs.writeFile(path.join(tagsDir, tagFileName), entryText,
+							err => {
+								if (err) reject(err);
+								else resolve();
+							});
+					});
+				})
+				.then(() => {
+					return akasha.renderDocument(config, tagsDir, tagFileName, config.renderDestination, config.taggedContent.pathIndexes);
+				})
+				.then(() => { next(); })
+				.catch(err => { next(err); });
+			},
+			err => {
+				if (err) reject(err);
+				else resolve();
+			});	
+		});
+	})
+	.then(() => {
+		return new Promise((resolve, reject) => {
+			fs.remove(tempDir.path, err => {
+				if (err) reject(err);
+				else resolve();
+			});
+		});
+	});
+	/* 
     config.root_docs.push(tempDir.path);
     var tagsDir = path.join(tempDir.path, config.taggedContent.pathIndexes);
     fs.mkdirSync(tagsDir);
@@ -215,22 +286,22 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
             entry = tagData.entries[j];
             entriez.push({
                 url: akasha.urlForFile(entry.path),
-                title: entry.frontmatter.yaml.title,
-                teaser: entry.frontmatter.yaml.teaser
-                      ? entry.frontmatter.yaml.teaser
+                title: entry.metadata.title,
+                teaser: entry.metadata.teaser
+                      ? entry.metadata.teaser
                       : "",
                 teaserThumb:
-						entry.frontmatter.yaml.teaserthumb
-                      ? entry.frontmatter.yaml.teaserthumb
+						entry.metadata.teaserthumb
+                      ? entry.metadata.teaserthumb
                       : "",
-				youtubeThumbnail: entry.frontmatter.yaml.youtubeThumbnail
-					   ? entry.frontmatter.yaml.youtubeThumbnail
+				youtubeThumbnail: entry.metadata.youtubeThumbnail
+					   ? entry.metadata.youtubeThumbnail
 					   : undefined,
-				videoThumbnail: entry.frontmatter.yaml.videoThumbnail
-					   ? entry.frontmatter.yaml.videoThumbnail
+				videoThumbnail: entry.metadata.videoThumbnail
+					   ? entry.metadata.videoThumbnail
 					   : undefined,
-				publicationDate: entry.frontmatter.yaml.publicationDate
-					   ? entry.frontmatter.yaml.publicationDate
+				publicationDate: entry.metadata.publicationDate
+					   ? entry.metadata.publicationDate
 					   : undefined
             });
         }
@@ -291,42 +362,53 @@ module.exports.generateTagIndexes = function(akasha, config, cb) {
             encoding: 'utf8'
         });
     }
+    */
     
-    akasha.gatherDir(tempDir.path, function(err) {
-        if (err) cb(err); else cb();
-    });
 };
 
-var genTagCloudData = function(akasha, config) {
+var tagCloudData;
+
+function genTagCloudData(config) {
     if (!tagCloudData) {
         tagCloudData = {
             tagData: []
         };
-        akasha.eachDocument(function(entry) {
-            // logger.trace('eachDocument '+ entry.path);
-            var taglist = entryTags(entry);
-            if (taglist) {
-                for (var i = 0; i < taglist.length; i++) {
-                    var tagnm = taglist[i];
-                    if (! tagCloudData.tagData[tagnm]) {
-                        tagCloudData.tagData[tagnm] = { tagName: tagnm, entries: [] };
-                    }
-                    // logger.trace('*** adding '+ entry.path +' to entries for '+ tagnm);
-                    tagCloudData.tagData[tagnm].entries.push(entry);
-                }
-            }
-        });
-        logger.trace('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
-        /*tagCloudData.tagData.sort(function(a, b) {
-            if (a.tagName < b.tagName) return -1;
-            else if (a.tagName === b.tagName) return 0;
-            else return 1;
-        });*/
-        for (var tagnm in tagCloudData.tagData) {
-            tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
-            logger.trace(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
-        }
-        taggen.generateFontSizes(tagCloudData.tagData);
-        // util.log(util.inspect(tagCloudData));
-    }
+		return akasha.documentSearch(config, {
+			// rootPath: '/',
+			renderers: [ akasha.HTMLRenderer ]
+		})
+		.then(documents => {
+			// log('genTagCloudData '+ util.inspect(documents));
+			return documents.map(document => {	
+				document.taglist = documentTags(document);
+				if (document.taglist) {
+					log(util.inspect(document.taglist));
+					for (var i = 0; i < document.taglist.length; i++) {
+						var tagnm = document.taglist[i];
+						var td;
+						td = undefined;
+						for (var j = 0; j < tagCloudData.tagData.length; j++) {
+							if (tagCloudData.tagData[j].tagName === tagnm) td = tagCloudData.tagData[j];
+						}
+						if (! td) {
+							td = { tagName: tagnm, entries: [] };
+							tagCloudData.tagData.push(td);
+						}
+						td.entries.push(document);
+						// log(tagnm +' '+ util.inspect(td));
+					}
+				}
+				return document;
+			});
+		})
+		.then(documents => {
+			// log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
+			for (var tagnm in tagCloudData.tagData) {
+				tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
+				// log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
+			}
+			taggen.generateFontSizes(tagCloudData.tagData);
+			return tagCloudData;
+		});
+    } else return Promise.resolve(tagCloudData);
 };
