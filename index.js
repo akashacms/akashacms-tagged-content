@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013 David Herron
+ * Copyright 2013-2017 David Herron
  *
  * This file is part of AkashaCMS-tagged-content (http://akashacms.com/).
  *
@@ -31,10 +31,10 @@ const akasha   = require('akasharender');
 const log   = require('debug')('akasha:tagged-content-plugin');
 const error = require('debug')('akasha:error-tagged-content-plugin');
 
+const pluginName = "akashacms-tagged-content";
+
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
-	constructor() {
-		super("akashacms-tagged-content");
-	}
+    constructor() { super(pluginName); }
 
 	configure(config) {
 		this._config = config;
@@ -42,23 +42,24 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 		config.addMahabhuta(module.exports.mahabhuta);
 	}
 
-	sortBy(sort) {
-		if (!this._config.taggedContent) this._config.taggedContent = {};
-		this._config.taggedContent.sortBy = sort;
-		return this;
-	}
+    sortBy(sort) {
+        this._config.pluginData(pluginName).sortBy = sort;
+        return this;
+    }
 
-	headerTemplate(template) {
-		if (!this._config.taggedContent) this._config.taggedContent = {};
-		this._config.taggedContent.headerTemplate = template;
-		return this;
-	}
+    headerTemplate(template) {
+        this._config.pluginData(pluginName).headerTemplate = template;
+        return this;
+    }
 
-	tagsDirectory(dirName) {
-		if (!this._config.taggedContent) this._config.taggedContent = {};
-		this._config.taggedContent.pathIndexes = dirName;
-		return this;
-	}
+    tagsDirectory(dirName) {
+        this._config.pluginData(pluginName).pathIndexes = dirName;
+        return this;
+    }
+
+    isLegitLocalHref(config, href) {
+        return href.startsWith(config.pluginData(pluginName).pathIndexes);
+    }
 
 	onSiteRendered(config) {
 		return module.exports.generateTagIndexes(config);
@@ -133,7 +134,7 @@ module.exports.mahabhuta = [
 ];
 
 var tagPageUrl = function(config, tagName) {
-    return config.taggedContent.pathIndexes + tag2encode4url(tagName) +'.html';
+    return config.pluginData(pluginName).pathIndexes + tag2encode4url(tagName) +'.html';
 }
 
 var tagParse = function(tags) {
@@ -198,7 +199,7 @@ function noteError(err) {
 
 module.exports.generateTagIndexes = co.wrap(function* (config) {
     var tempDir = new tmp.Dir();
-    var tagsDir = path.join(tempDir.path, config.taggedContent.pathIndexes);
+    var tagsDir = path.join(tempDir.path, config.pluginData(pluginName).pathIndexes);
     log('generateTagIndexes '+ tagsDir);
     yield new Promise((resolve, reject) => {
         fs.mkdir(tagsDir, err => {
@@ -216,10 +217,10 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         var tagFileName = tagNameEncoded +".html.ejs";
 
-        if (config.taggedContent.sortBy === 'date') {
+        if (config.pluginData(pluginName).sortBy === 'date') {
             tagData.entries.sort(sortByDate);
             tagData.entries.reverse();
-        } else if (config.taggedContent.sortBy === 'title') {
+        } else if (config.pluginData(pluginName).sortBy === 'title') {
             tagData.entries.sort(sortByTitle);
         } else {
             tagData.entries.sort(sortByTitle);
@@ -230,7 +231,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
                 { entries: tagData.entries });
 
 
-        var entryText = config.taggedContent.headerTemplate
+        var entryText = config.pluginData(pluginName).headerTemplate
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
         entryText += text2write;
@@ -248,7 +249,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
                         tagsDir,
                         tagFileName,
                         config.renderDestination,
-                        config.taggedContent.pathIndexes);
+                        config.pluginData(pluginName).pathIndexes);
     }
 
     yield new Promise((resolve, reject) => {
