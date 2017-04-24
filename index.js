@@ -88,6 +88,9 @@ module.exports.mahabhuta = [
 		var elements = [];
 		$('tag-cloud').each(function(i, elem) { elements.push(elem); });
 		async.each(elements, (element, cb) => {
+            let id = $(element).attr('id');
+            let clazz = $(element).attr('class');
+            let style = $(element).attr('style');
 			genTagCloudData(metadata.config)
 			.then(tagCloudData => {
                 /* console.log('******* tag-cloud tags:');
@@ -99,7 +102,9 @@ module.exports.mahabhuta = [
 					return tagPageUrl(metadata.config, tagName);
 				}, "");
                 // console.log(tagCloud);
-				$(element).replaceWith(tagCloud);
+				$(element).replaceWith(akasha.partialSync(metadata.config, "tagged-content-cloud.html.ejs", {
+                    tagCloud, id, clazz, style
+                }));
 				cb();
 			})
 			.catch(err => { cb(err); });
