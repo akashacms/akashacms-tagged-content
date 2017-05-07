@@ -65,6 +65,12 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 	onSiteRendered(config) {
 		return module.exports.generateTagIndexes(config);
 	}
+
+    hasTag(tags, tag) {
+        var taglist = tagParse(tags);
+        // console.log(`documentHasTag ${tag} ${util.inspect(taglist)}`);
+        return taglist ? taglist.includes(tag) : false;
+    }
 };
 
 
@@ -86,8 +92,8 @@ function doTagsForDocument(config, metadata, template) {
 module.exports.mahabhuta = new mahabhuta.MahafuncArray("akashacms-tagged-content", {});
 
 class TagCloudElement extends mahabhuta.CustomElement {
-	get elementName() { return "tag-cloud"; }
-	process($element, metadata, dirty, done) {
+    get elementName() { return "tag-cloud"; }
+    process($element, metadata, dirty, done) {
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
@@ -106,15 +112,15 @@ class TagCloudElement extends mahabhuta.CustomElement {
                 tagCloud, id, clazz, style
             });
         });
-	}
+    }
 }
 module.exports.mahabhuta.addMahafunc(new TagCloudElement());
 
 class TagsForDocumentElement extends mahabhuta.CustomElement {
-	get elementName() { return "tags-for-document"; }
-	process($element, metadata, dirty, done) {
+    get elementName() { return "tags-for-document"; }
+    process($element, metadata, dirty, done) {
         return doTagsForDocument(metadata.config, metadata, "tagged-content-doctags.html.ejs");
-	}
+    }
 }
 module.exports.mahabhuta.addMahafunc(new TagsForDocumentElement());
 
@@ -125,21 +131,23 @@ var tagPageUrl = function(config, tagName) {
 var tagParse = function(tags) {
     var taglist = [];
     var re = /\s*,\s*/;
-    if (tags) tags.split(re).forEach(function(tag) {
+    if (typeof tags !== 'undefined' && tags) tags.split(re).forEach(function(tag) {
         taglist.push(tag.trim());
     });
     return taglist;
 }
 
 var documentTags = function(document) {
-	// log('documentTags '+ util.inspect(document.metadata));
+    // console.log('documentTags '+ util.inspect(document.metadata));
     if (document.metadata && document.metadata.tags) {
         // parse tags
         // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
         // util.log(entry.frontmatter.tags);
         var taglist = tagParse(document.metadata.tags);
+        // console.log(`documentTags taglist ${document.relpath} ${document.metadata.tags} ==> ${util.inspect(taglist)}`);
         return taglist;
     } else {
+        // console.log(`documentTags ${document.relpath} NO taglist`);
         return undefined;
     }
 }
