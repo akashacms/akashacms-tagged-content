@@ -42,7 +42,26 @@ config.plugin("akashacms-tagged-content")
     .tagsDirectory('/tags/');
 ```
 
+_sortBy_: As suggested by the function name, this controls the sorting of tag entries in a tag index page.
+
+_headerTemplate_: The tag index pages are dynamically generated, meaning that you don't create them yourself.  This value controls the initial content of each.
+
+_tagsDirectory_: Controls where, within the site, the tag index pages are rendered.
+
 # Custom Tags
 
+```
+<tag-cloud id="id" class="class" style="style"/>
+```
 
-TODO - Have not written this yet.  Study the source code for clues.
+Generates a tag cloud.  The wrapper has `id` and `class` and `style` attributes as specified by the (optional) attributes.
+
+The tag cloud is rendered through the `tagged-content-cloud.html.ejs` template.
+
+```
+<tags-for-document/>
+```
+
+Generates an indicator of the tags for this document, linking them to the corresponding tag page.
+
+The tags are rendered through the `tagged-content-doctags.html.ejs` template.
