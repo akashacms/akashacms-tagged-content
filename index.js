@@ -27,6 +27,7 @@ const co       = require('co');
 const taggen   = require('tagcloud-generator');
 const tmp      = require('temporary');
 const akasha   = require('akasharender');
+const mahabhuta = require('mahabhuta');
 
 const log   = require('debug')('akasha:tagged-content-plugin');
 const error = require('debug')('akasha:error-tagged-content-plugin');
@@ -82,61 +83,40 @@ function doTagsForDocument(config, metadata, template) {
 	} else return Promise.resolve("");
 };
 
-module.exports.mahabhuta = [
-	function($, metadata, dirty, done) {
-		// util.log('tagged-content <tag-cloud>');
-		var elements = [];
-		$('tag-cloud').each(function(i, elem) { elements.push(elem); });
-		async.each(elements, (element, cb) => {
-            let id = $(element).attr('id');
-            let clazz = $(element).attr('class');
-            let style = $(element).attr('style');
-			genTagCloudData(metadata.config)
-			.then(tagCloudData => {
-                /* console.log('******* tag-cloud tags:');
-                for (let tagdata of tagCloudData.tagData) {
-                    console.log(`     ${tagdata.tagName}`);
-                } */
-                // console.log(util.inspect(tagCloudData.tagData));
-				var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
-					return tagPageUrl(metadata.config, tagName);
-				}, "");
-                // console.log(tagCloud);
-				$(element).replaceWith(akasha.partialSync(metadata.config, "tagged-content-cloud.html.ejs", {
-                    tagCloud, id, clazz, style
-                }));
-				cb();
-			})
-			.catch(err => { cb(err); });
-		},
-		err => {
-			if (err) done(err);
-			else done();
-		});
-	},
+module.exports.mahabhuta = new mahabhuta.MahafuncArray("akashacms-tagged-content", {});
 
-	function($, metadata, dirty, done) {
-		// util.log('tagged-content <tag-for-document>');
-		var tfds = [];
-		$('tags-for-document').each(function(i, elem) { tfds.push(elem); });
-		async.each(tfds,
-		(tfd, cb) => {
-			if (tfd) {
-				doTagsForDocument(metadata.config, metadata, "tagged-content-doctags.html.ejs")
-				.then(tags => {
-					// log('tags-for-document '+ metadata.tags +' '+ tags);
-					$(tfd).replaceWith(tags);
-					cb();
-				})
-				.catch(err => { cb(err); });
-			} else cb();
-		},
-		err => {
-			if (err) done(err);
-			else done();
-		});
+class TagCloudElement extends mahabhuta.CustomElement {
+	get elementName() { return "tag-cloud"; }
+	process($element, metadata, dirty, done) {
+        let id = $element.attr('id');
+        let clazz = $element.attr('class');
+        let style = $element.attr('style');
+        return genTagCloudData(metadata.config)
+        .then(tagCloudData => {
+            /* console.log('******* tag-cloud tags:');
+            for (let tagdata of tagCloudData.tagData) {
+                console.log(`     ${tagdata.tagName}`);
+            } */
+            // console.log(util.inspect(tagCloudData.tagData));
+            var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
+                return tagPageUrl(metadata.config, tagName);
+            }, "");
+            // console.log(tagCloud);
+            return akasha.partial(metadata.config, "tagged-content-cloud.html.ejs", {
+                tagCloud, id, clazz, style
+            });
+        });
 	}
-];
+}
+module.exports.mahabhuta.addMahafunc(new TagCloudElement());
+
+class TagsForDocumentElement extends mahabhuta.CustomElement {
+	get elementName() { return "tags-for-document"; }
+	process($element, metadata, dirty, done) {
+        return doTagsForDocument(metadata.config, metadata, "tagged-content-doctags.html.ejs");
+	}
+}
+module.exports.mahabhuta.addMahafunc(new TagsForDocumentElement());
 
 var tagPageUrl = function(config, tagName) {
     return config.pluginData(pluginName).pathIndexes + tag2encode4url(tagName) +'.html';
