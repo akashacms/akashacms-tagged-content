@@ -65,3 +65,9 @@ The tag cloud is rendered through the `tagged-content-cloud.html.ejs` template.
 Generates an indicator of the tags for this document, linking them to the corresponding tag page.
 
 The tags are rendered through the `tagged-content-doctags.html.ejs` template.
+
+```
+<% ... config.plugin('akashacms-tagged-content').hasTag(tags, 'Doctor Who') ... %>
+```
+
+The _hasTag_ function is useful for checking whether a given tag is set, or not.  This will allow you to modify the content based on the document tags.
