@@ -3,11 +3,25 @@ layout: plugin-documentation.html.ejs
 title: AskashaCMS Tagged-Content plugin documentation
 ---
 
-_Tags_ are an excellent way to categorize and organize content.  Other platforms like Drupal or Wordpress or Blogger have similar features.  In `akashacms-tagged-content` you add a comma-separated list of tags to the frontmatter, and three tools are available:
+_Tags_ are an excellent way to categorize and organize content.  Other platforms like Drupal or Wordpress or Blogger have similar features.  In `akashacms-tagged-content` you add a list of tags to the document frontmatter, and three tools are available:
 
 * A `tags-for-document` custom element shows the tags for the current document
 * A `tag-cloud` custom element shows all tags, as a tag cloud.  I know tag clouds stopped being popular, but I like them
 * A set of pages can be generated, one page per tag, showing the items associated with that tag
+
+The tags are stored in the `tags` field in the document frontmatter.  They can be a YAML array like:
+
+```
+tags:
+    - OpenAPI
+    - Swagger
+```
+
+Or they can be a comma-separated string, like:
+
+```
+tags: OpenAPI, Swagger
+```
 
 # Installation
 
