@@ -1,6 +1,11 @@
-<div id="tag-cloud">
-    <% for (var i = 0; i < tagCloudData.tagData.length; i++) {
-        var tagData = tagCloudData.tagData[i];
-        %> <a class="taglink-cloud" style="font-size: <%= tagData.fontSize %>;" href="<%= tagData.indexPageLink %>"><%= tagData.tagName %></a>
-    <% } %>
+<div <%
+    if (typeof id !== 'undefined') {
+        %>id="<%= id %>"<%
+    } else {
+        %>id="tagged-content-tags"<%
+    }
+    if (typeof clazz !== 'undefined') { %>class="<%= clazz %>"<% }
+    if (typeof style !== 'undefined') { %>style="<%= style %>"<% }
+    %>>
+    <%- tagCloud %>
 </div>
