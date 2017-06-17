@@ -22,7 +22,6 @@
 const path     = require('path');
 const util     = require('util');
 const fs       = require('fs-extra');
-const async    = require('async');
 const co       = require('co');
 const taggen   = require('tagcloud-generator');
 const tmp      = require('temporary');
@@ -129,9 +128,15 @@ var tagPageUrl = function(config, tagName) {
 }
 
 var tagParse = function(tags) {
+    if (typeof tags === 'undefined' || !tags) {
+        return [];
+    }
+    if (Array.isArray(tags)) {
+        return tags;
+    }
     var taglist = [];
     var re = /\s*,\s*/;
-    if (typeof tags !== 'undefined' && tags) tags.split(re).forEach(function(tag) {
+    tags.split(re).forEach(function(tag) {
         taglist.push(tag.trim());
     });
     return taglist;
@@ -279,7 +284,9 @@ function genTagCloudData(config) {
                     var td;
                     td = undefined;
                     for (var j = 0; j < tagCloudData.tagData.length; j++) {
-                        if (tagCloudData.tagData[j].tagName === tagnm) td = tagCloudData.tagData[j];
+                        if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
+                            td = tagCloudData.tagData[j];
+                        }
                     }
                     if (! td) {
                         td = { tagName: tagnm, entries: [] };
