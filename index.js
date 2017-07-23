@@ -278,23 +278,23 @@ function genTagCloudData(config) {
 
         for (let document of documents) {
             document.taglist = documentTags(document);
-            if (document.taglist) {
-                log(util.inspect(document.taglist));
+            if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
+                // console.log(util.inspect(document.taglist));
                 for (let tagnm of document.taglist) {
-                    var td;
-                    td = undefined;
+                    let td = undefined;
                     for (var j = 0; j < tagCloudData.tagData.length; j++) {
                         if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
                             td = tagCloudData.tagData[j];
                         }
                     }
-                    if (! td) {
+                    if (typeof td === 'undefined' || !td) {
                         td = { tagName: tagnm, entries: [] };
                         tagCloudData.tagData.push(td);
                     }
                     td.entries.push(document);
-                    // log(tagnm +' '+ util.inspect(td));
+                    // console.log(tagnm +' '+ util.inspect(td));
                 }
+                // console.log(util.inspect(tagCloudData.tagData));
             }
         }
 
@@ -321,7 +321,8 @@ function genTagCloudData(config) {
         }); */
 
         // log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
-        for (var tagnm in tagCloudData.tagData) {
+        for (var tagnm of tagCloudData.tagData.keys()) {
+            // console.log(`${tagnm}: ${typeof tagCloudData.tagData[tagnm]}`);
             tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
             // log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
         }
@@ -335,6 +336,7 @@ function genTagCloudData(config) {
                 return 0;
             })
         };
+        // console.log(`genTagCloudData fini`);
         return tagCloudData;
     });
 };
