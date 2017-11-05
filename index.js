@@ -26,7 +26,7 @@ const co       = require('co');
 const taggen   = require('tagcloud-generator');
 const tmp      = require('temporary');
 const akasha   = require('akasharender');
-const mahabhuta = require('mahabhuta');
+const mahabhuta = akasha.mahabhuta;
 
 const log   = require('debug')('akasha:tagged-content-plugin');
 const error = require('debug')('akasha:error-tagged-content-plugin');
