@@ -225,20 +225,12 @@ module.exports.generateTagIndexes = async function (config) {
                 "tagged-content-tagpagelist.html.ejs",
                 { entries: tagData.entries });
 
-
         var entryText = config.pluginData(pluginName).headerTemplate
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
         entryText += text2write;
 
-        await new Promise((resolve, reject) => {
-            fs.writeFile(path.join(tagsDir, tagFileName), entryText,
-                err => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-        });
-
+        await fs.writeFile(path.join(tagsDir, tagFileName), entryText);
         await akasha.renderDocument(
                         config,
                         tagsDir,
@@ -247,14 +239,9 @@ module.exports.generateTagIndexes = async function (config) {
                         config.pluginData(pluginName).pathIndexes);
     }
 
-    await new Promise((resolve, reject) => {
-        fs.remove(tempDir.path, err => {
-            if (err) reject(err);
-            else resolve();
-        });
-    });
+    await fs.remove(tempDir.path);
 
-});
+};
 
 var tagCloudData;
 
