@@ -22,7 +22,6 @@
 const path     = require('path');
 const util     = require('util');
 const fs       = require('fs-extra');
-const co       = require('co');
 const taggen   = require('tagcloud-generator');
 const tmp      = require('temporary');
 const akasha   = require('akasharender');
@@ -92,24 +91,22 @@ module.exports.mahabhuta = new mahabhuta.MahafuncArray("akashacms-tagged-content
 
 class TagCloudElement extends mahabhuta.CustomElement {
     get elementName() { return "tag-cloud"; }
-    process($element, metadata, dirty, done) {
+    async process($element, metadata, dirty, done) {
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
-        return genTagCloudData(metadata.config)
-        .then(tagCloudData => {
-            /* console.log('******* tag-cloud tags:');
-            for (let tagdata of tagCloudData.tagData) {
-                console.log(`     ${tagdata.tagName}`);
-            } */
-            // console.log(util.inspect(tagCloudData.tagData));
-            var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
-                return tagPageUrl(metadata.config, tagName);
-            }, "");
-            // console.log(tagCloud);
-            return akasha.partial(metadata.config, "tagged-content-cloud.html.ejs", {
-                tagCloud, id, clazz, style
-            });
+        var tagCloudData = await genTagCloudData(metadata.config);
+        /* console.log('******* tag-cloud tags:');
+        for (let tagdata of tagCloudData.tagData) {
+            console.log(`     ${tagdata.tagName}`);
+        } */
+        // console.log(util.inspect(tagCloudData.tagData));
+        var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
+            return tagPageUrl(metadata.config, tagName);
+        }, "");
+        // console.log(tagCloud);
+        return akasha.partial(metadata.config, "tagged-content-cloud.html.ejs", {
+            tagCloud, id, clazz, style
         });
     }
 }
@@ -195,17 +192,17 @@ function noteError(err) {
 	if (err) error(err);
 }
 
-module.exports.generateTagIndexes = co.wrap(function* (config) {
+module.exports.generateTagIndexes = async function (config) {
     var tempDir = new tmp.Dir();
     var tagsDir = path.join(tempDir.path, config.pluginData(pluginName).pathIndexes);
     log('generateTagIndexes '+ tagsDir);
-    yield new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
         fs.mkdir(tagsDir, err => {
             if (err) reject(err);
             else resolve();
         });
     })
-    var tagCloudData = yield genTagCloudData(config);
+    var tagCloudData = await genTagCloudData(config);
 
     // log(util.inspect(tagCloudData));
 
@@ -224,7 +221,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
             tagData.entries.sort(sortByTitle);
         }
 
-        var text2write = yield akasha.partial(config,
+        var text2write = await akasha.partial(config,
                 "tagged-content-tagpagelist.html.ejs",
                 { entries: tagData.entries });
 
@@ -234,7 +231,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
             .replace("@tagName@", tagData.tagName);
         entryText += text2write;
 
-        yield new Promise((resolve, reject) => {
+        await new Promise((resolve, reject) => {
             fs.writeFile(path.join(tagsDir, tagFileName), entryText,
                 err => {
                     if (err) reject(err);
@@ -242,7 +239,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
                 });
         });
 
-        yield akasha.renderDocument(
+        await akasha.renderDocument(
                         config,
                         tagsDir,
                         tagFileName,
@@ -250,7 +247,7 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
                         config.pluginData(pluginName).pathIndexes);
     }
 
-    yield new Promise((resolve, reject) => {
+    await new Promise((resolve, reject) => {
         fs.remove(tempDir.path, err => {
             if (err) reject(err);
             else resolve();
@@ -261,82 +258,80 @@ module.exports.generateTagIndexes = co.wrap(function* (config) {
 
 var tagCloudData;
 
-function genTagCloudData(config) {
-    return co(function* () {
-        if (tagCloudData) {
-            return tagCloudData;
-        }
-
-        tagCloudData = {
-            tagData: []
-        };
-
-        var documents = yield akasha.documentSearch(config, {
-            // rootPath: '/',
-            renderers: [ akasha.HTMLRenderer ]
-        });
-
-        for (let document of documents) {
-            document.taglist = documentTags(document);
-            if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
-                // console.log(util.inspect(document.taglist));
-                for (let tagnm of document.taglist) {
-                    let td = undefined;
-                    for (var j = 0; j < tagCloudData.tagData.length; j++) {
-                        if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
-                            td = tagCloudData.tagData[j];
-                        }
-                    }
-                    if (typeof td === 'undefined' || !td) {
-                        td = { tagName: tagnm, entries: [] };
-                        tagCloudData.tagData.push(td);
-                    }
-                    td.entries.push(document);
-                    // console.log(tagnm +' '+ util.inspect(td));
-                }
-                // console.log(util.inspect(tagCloudData.tagData));
-            }
-        }
-
-        /* documents = documents.map(document => {
-            document.taglist = documentTags(document);
-            if (document.taglist) {
-                log(util.inspect(document.taglist));
-                for (var i = 0; i < document.taglist.length; i++) {
-                    var tagnm = document.taglist[i];
-                    var td;
-                    td = undefined;
-                    for (var j = 0; j < tagCloudData.tagData.length; j++) {
-                        if (tagCloudData.tagData[j].tagName === tagnm) td = tagCloudData.tagData[j];
-                    }
-                    if (! td) {
-                        td = { tagName: tagnm, entries: [] };
-                        tagCloudData.tagData.push(td);
-                    }
-                    td.entries.push(document);
-                    // log(tagnm +' '+ util.inspect(td));
-                }
-            }
-            return document;
-        }); */
-
-        // log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
-        for (var tagnm of tagCloudData.tagData.keys()) {
-            // console.log(`${tagnm}: ${typeof tagCloudData.tagData[tagnm]}`);
-            tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
-            // log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
-        }
-        taggen.generateFontSizes(tagCloudData.tagData);
-        tagCloudData = {
-            tagData: tagCloudData.tagData.sort((a,b) => {
-                var tagA = a.tagName.toLowerCase();
-                var tagB = b.tagName.toLowerCase();
-                if (tagA < tagB) return -1;
-                if (tagA > tagB) return 1;
-                return 0;
-            })
-        };
-        // console.log(`genTagCloudData fini`);
+async function genTagCloudData(config) {
+    if (tagCloudData) {
         return tagCloudData;
+    }
+
+    tagCloudData = {
+        tagData: []
+    };
+
+    var documents = await akasha.documentSearch(config, {
+        // rootPath: '/',
+        renderers: [ akasha.HTMLRenderer ]
     });
+
+    for (let document of documents) {
+        document.taglist = documentTags(document);
+        if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
+            // console.log(util.inspect(document.taglist));
+            for (let tagnm of document.taglist) {
+                let td = undefined;
+                for (var j = 0; j < tagCloudData.tagData.length; j++) {
+                    if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
+                        td = tagCloudData.tagData[j];
+                    }
+                }
+                if (typeof td === 'undefined' || !td) {
+                    td = { tagName: tagnm, entries: [] };
+                    tagCloudData.tagData.push(td);
+                }
+                td.entries.push(document);
+                // console.log(tagnm +' '+ util.inspect(td));
+            }
+            // console.log(util.inspect(tagCloudData.tagData));
+        }
+    }
+
+    /* documents = documents.map(document => {
+        document.taglist = documentTags(document);
+        if (document.taglist) {
+            log(util.inspect(document.taglist));
+            for (var i = 0; i < document.taglist.length; i++) {
+                var tagnm = document.taglist[i];
+                var td;
+                td = undefined;
+                for (var j = 0; j < tagCloudData.tagData.length; j++) {
+                    if (tagCloudData.tagData[j].tagName === tagnm) td = tagCloudData.tagData[j];
+                }
+                if (! td) {
+                    td = { tagName: tagnm, entries: [] };
+                    tagCloudData.tagData.push(td);
+                }
+                td.entries.push(document);
+                // log(tagnm +' '+ util.inspect(td));
+            }
+        }
+        return document;
+    }); */
+
+    // log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
+    for (var tagnm of tagCloudData.tagData.keys()) {
+        // console.log(`${tagnm}: ${typeof tagCloudData.tagData[tagnm]}`);
+        tagCloudData.tagData[tagnm].count = tagCloudData.tagData[tagnm].entries.length;
+        // log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
+    }
+    taggen.generateFontSizes(tagCloudData.tagData);
+    tagCloudData = {
+        tagData: tagCloudData.tagData.sort((a,b) => {
+            var tagA = a.tagName.toLowerCase();
+            var tagB = b.tagName.toLowerCase();
+            if (tagA < tagB) return -1;
+            if (tagA > tagB) return 1;
+            return 0;
+        })
+    };
+    // console.log(`genTagCloudData fini`);
+    return tagCloudData;
 };
