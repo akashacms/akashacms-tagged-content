@@ -193,6 +193,8 @@ function noteError(err) {
 }
 
 module.exports.generateTagIndexes = async function (config) {
+    const tagIndexStart = new Date();
+    var tagIndexCount = 0;
     var tempDir = new tmp.Dir();
     var tagsDir = path.join(tempDir.path, config.pluginData(pluginName).pathIndexes);
     log('generateTagIndexes '+ tagsDir);
@@ -208,6 +210,7 @@ module.exports.generateTagIndexes = async function (config) {
 
     for (let tagData of tagCloudData.tagData) {
 
+        let tagFileStart = new Date();
         // log(util.inspect(tagData));
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         var tagFileName = tagNameEncoded +".html.ejs";
@@ -237,10 +240,18 @@ module.exports.generateTagIndexes = async function (config) {
                         tagFileName,
                         config.renderDestination,
                         config.pluginData(pluginName).pathIndexes);
+
+        let tagFileEnd = new Date();
+        console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
+        
+        tagIndexCount++;
     }
 
     await fs.remove(tempDir.path);
 
+    const tagIndexEnd = new Date();
+
+    console.log(`tagged-content FINISH tag indexing for ${tagIndexCount} indexes in ${(tagIndexEnd - tagIndexStart) / 1000} seconds`);
 };
 
 var tagCloudData;
