@@ -224,15 +224,15 @@ module.exports.generateTagIndexes = async function (config) {
             tagData.entries.sort(sortByTitle);
         }
 
-        let tagFileSort = new Date();
-        console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
+        // let tagFileSort = new Date();
+        // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
 
         var text2write = await akasha.partial(config,
                 "tagged-content-tagpagelist.html.ejs",
                 { entries: tagData.entries });
 
-        let tagFile2Write = new Date();
-        console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
+        // let tagFile2Write = new Date();
+        // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
         
         var entryText = config.pluginData(pluginName).headerTemplate
             .replace("@title@", tagData.tagName)
