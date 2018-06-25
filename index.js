@@ -208,15 +208,6 @@ module.exports.generateTagIndexes = async function (config) {
 
     // log(util.inspect(tagCloudData));
 
-    if (config.pluginData(pluginName).sortBy === 'date') {
-        tagData.entries.sort(sortByDate);
-        tagData.entries.reverse();
-    } else if (config.pluginData(pluginName).sortBy === 'title') {
-        tagData.entries.sort(sortByTitle);
-    } else {
-        tagData.entries.sort(sortByTitle);
-    }
-
     for (let tagData of tagCloudData.tagData) {
 
         let tagFileStart = new Date();
@@ -224,10 +215,25 @@ module.exports.generateTagIndexes = async function (config) {
         var tagNameEncoded = tag2encode4url(tagData.tagName);
         var tagFileName = tagNameEncoded +".html.ejs";
 
+        if (config.pluginData(pluginName).sortBy === 'date') {
+            tagData.entries.sort(sortByDate);
+            tagData.entries.reverse();
+        } else if (config.pluginData(pluginName).sortBy === 'title') {
+            tagData.entries.sort(sortByTitle);
+        } else {
+            tagData.entries.sort(sortByTitle);
+        }
+
+        let tagFileSort = new Date();
+        console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
+
         var text2write = await akasha.partial(config,
                 "tagged-content-tagpagelist.html.ejs",
                 { entries: tagData.entries });
 
+        let tagFile2Write = new Date();
+        console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
+        
         var entryText = config.pluginData(pluginName).headerTemplate
             .replace("@title@", tagData.tagName)
             .replace("@tagName@", tagData.tagName);
@@ -243,7 +249,7 @@ module.exports.generateTagIndexes = async function (config) {
 
         let tagFileEnd = new Date();
         console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
-
+        
         tagIndexCount++;
     }
 
