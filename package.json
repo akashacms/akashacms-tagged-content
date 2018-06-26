@@ -18,6 +18,7 @@
   "dependencies": {
     "tagcloud-generator": "*",
     "temporary": "*",
-    "fs-extra": "*"
+    "fs-extra": "*",
+    "run-parallel-limit": ">=1.x"
   }
 }
