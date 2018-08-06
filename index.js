@@ -88,24 +88,28 @@ function doTagsForDocument(config, metadata, template) {
 	} else return Promise.resolve("");
 };
 
-module.exports.mahabhuta = new mahabhuta.MahafuncArray("akashacms-tagged-content", {});
+module.exports.mahabhuta = new mahabhuta.MahafuncArray(pluginName, {});
 
 class TagCloudElement extends mahabhuta.CustomElement {
     get elementName() { return "tag-cloud"; }
-    async process($element, metadata, dirty, done) {
+    async process($element, metadata, dirty) {
+        // let startTime = new Date();
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
-        var tagCloudData = await genTagCloudData(metadata.config);
+        let pluginData = metadata.config.pluginData(pluginName);
+        if (!pluginData.tagCloudData) pluginData.tagCloudData = await genTagCloudData(metadata.config);
         /* console.log('******* tag-cloud tags:');
         for (let tagdata of tagCloudData.tagData) {
             console.log(`     ${tagdata.tagName}`);
         } */
         // console.log(util.inspect(tagCloudData.tagData));
-        var tagCloud = taggen.generateSimpleCloud(tagCloudData.tagData, tagName => {
+        // console.log(`TagCloudElement ${metadata.document.path} genTagCloudData ${(new Date() - startTime) / 1000} seconds`);
+        var tagCloud = taggen.generateSimpleCloud(pluginData.tagCloudData.tagData, tagName => {
             return tagPageUrl(metadata.config, tagName);
         }, "");
         // console.log(tagCloud);
+        // console.log(`TagCloudElement ${metadata.document.path} generateSimpleCloud ${(new Date() - startTime) / 1000} seconds`);
         return akasha.partial(metadata.config, "tagged-content-cloud.html.ejs", {
             tagCloud, id, clazz, style
         });
@@ -234,6 +238,8 @@ module.exports.generateTagIndexes = async function (config) {
                         tagData.entries.sort(sortByTitle);
                     }
 
+                    let tagFileSorted = new Date() - tagFileStart;
+
                     // let tagFileSort = new Date();
                     // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
 
@@ -250,6 +256,7 @@ module.exports.generateTagIndexes = async function (config) {
                     entryText += text2write;
 
                     await fs.writeFile(path.join(tagsDir, tagFileName), entryText);
+                    let tagFileWritten = new Date() - tagFileStart;
                     await akasha.renderDocument(
                                     config,
                                     tagsDir,
@@ -258,7 +265,7 @@ module.exports.generateTagIndexes = async function (config) {
                                     config.pluginData(pluginName).pathIndexes);
 
                     let tagFileEnd = new Date();
-                    console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
+                    console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
                     
                     tagIndexCount++;
                     cb();
@@ -335,6 +342,8 @@ async function genTagCloudData(config) {
     if (tagCloudData) {
         return tagCloudData;
     }
+    
+    // let startTime = new Date();
 
     tagCloudData = {
         tagData: []
@@ -344,6 +353,8 @@ async function genTagCloudData(config) {
         // rootPath: '/',
         renderers: [ akasha.HTMLRenderer ]
     });
+
+    // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
 
     for (let document of documents) {
         document.taglist = documentTags(document);
@@ -366,6 +377,8 @@ async function genTagCloudData(config) {
             // console.log(util.inspect(tagCloudData.tagData));
         }
     }
+
+    // console.log(`genTagCloudData documentTags ${(new Date() - startTime) / 1000} seconds`);
 
     /* documents = documents.map(document => {
         document.taglist = documentTags(document);
@@ -396,6 +409,8 @@ async function genTagCloudData(config) {
         // log(tagCloudData.tagData[tagnm].tagName +' = '+ tagCloudData.tagData[tagnm].entries.length);
     }
     taggen.generateFontSizes(tagCloudData.tagData);
+    // console.log(`genTagCloudData generateFontSizes ${(new Date() - startTime) / 1000} seconds`);
+
     tagCloudData = {
         tagData: tagCloudData.tagData.sort((a,b) => {
             var tagA = a.tagName.toLowerCase();
@@ -405,6 +420,7 @@ async function genTagCloudData(config) {
             return 0;
         })
     };
+    // console.log(`genTagCloudData tagCloudData.tagData.sort ${(new Date() - startTime) / 1000} seconds`);
     // console.log(`genTagCloudData fini`);
     return tagCloudData;
 };
