@@ -1,7 +1,7 @@
 <span class="taglist">
     <% for (var i = 0; i < tagz.length; i++) {
         var tagData = tagz[i];
-        %> <a class="taglink-header" href="<%= tagData.tagUrl %>"><%= tagData.tagName %></a> <%
+        %> <a class="taglink-header p-category" href="<%= tagData.tagUrl %>"><%= tagData.tagName %></a> <%
         if (i < (tagz.length-1)) { %>&raquo;<% }
     } %>
 </span>

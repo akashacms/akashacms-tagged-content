@@ -282,53 +282,6 @@ module.exports.generateTagIndexes = async function (config) {
         });
     });
 
-    /*
-    for (let tagData of tagCloudData.tagData) {
-
-        let tagFileStart = new Date();
-        // log(util.inspect(tagData));
-        var tagNameEncoded = tag2encode4url(tagData.tagName);
-        var tagFileName = tagNameEncoded +".html.ejs";
-
-        if (config.pluginData(pluginName).sortBy === 'date') {
-            tagData.entries.sort(sortByDate);
-            tagData.entries.reverse();
-        } else if (config.pluginData(pluginName).sortBy === 'title') {
-            tagData.entries.sort(sortByTitle);
-        } else {
-            tagData.entries.sort(sortByTitle);
-        }
-
-        // let tagFileSort = new Date();
-        // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
-
-        var text2write = await akasha.partial(config,
-                "tagged-content-tagpagelist.html.ejs",
-                { entries: tagData.entries });
-
-        // let tagFile2Write = new Date();
-        // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
-        
-        var entryText = config.pluginData(pluginName).headerTemplate
-            .replace("@title@", tagData.tagName)
-            .replace("@tagName@", tagData.tagName);
-        entryText += text2write;
-
-        await fs.writeFile(path.join(tagsDir, tagFileName), entryText);
-        await akasha.renderDocument(
-                        config,
-                        tagsDir,
-                        tagFileName,
-                        config.renderDestination,
-                        config.pluginData(pluginName).pathIndexes);
-
-        let tagFileEnd = new Date();
-        console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
-        
-        tagIndexCount++;
-    }
-    */
-
     await fs.remove(tempDir.path);
 
     const tagIndexEnd = new Date();
@@ -379,29 +332,6 @@ async function genTagCloudData(config) {
     }
 
     // console.log(`genTagCloudData documentTags ${(new Date() - startTime) / 1000} seconds`);
-
-    /* documents = documents.map(document => {
-        document.taglist = documentTags(document);
-        if (document.taglist) {
-            log(util.inspect(document.taglist));
-            for (var i = 0; i < document.taglist.length; i++) {
-                var tagnm = document.taglist[i];
-                var td;
-                td = undefined;
-                for (var j = 0; j < tagCloudData.tagData.length; j++) {
-                    if (tagCloudData.tagData[j].tagName === tagnm) td = tagCloudData.tagData[j];
-                }
-                if (! td) {
-                    td = { tagName: tagnm, entries: [] };
-                    tagCloudData.tagData.push(td);
-                }
-                td.entries.push(document);
-                // log(tagnm +' '+ util.inspect(td));
-            }
-        }
-        return document;
-    }); */
-
     // log('******** DONE akasha.eachDocument count='+ tagCloudData.tagData.length);
     for (var tagnm of tagCloudData.tagData.keys()) {
         // console.log(`${tagnm}: ${typeof tagCloudData.tagData[tagnm]}`);

@@ -2,8 +2,11 @@
     for (var j = 0; j < entries.length; j++) {
         var entry = entries[j];
         %><p>
-            <a href="/<%= entry.renderpath %>"><%= entry.metadata.title %></a>
-            <% if (entry.teaser) { %><%= entry.teaser %><% } %>
+            <strong>
+            <a href="/<%= entry.renderpath %>"><%=
+                 entry.metadata.title 
+            %></a></strong><% 
+             if (entry.teaser) { %>: <%- entry.teaser %><% } %>
         </p><%
     }
 %>
