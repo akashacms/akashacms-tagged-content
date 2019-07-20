@@ -33,27 +33,35 @@ const error = require('debug')('akasha:error-tagged-content-plugin');
 
 const pluginName = "akashacms-tagged-content";
 
+const _plugin_config = Symbol('config');
+const _plugin_options = Symbol('options');
+
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
     constructor() { super(pluginName); }
 
-	configure(config) {
-		this._config = config;
-		config.addPartialsDir(path.join(__dirname, 'partials'));
-		config.addMahabhuta(module.exports.mahabhuta);
-	}
+    configure(config, options) {
+        this[_plugin_config] = config;
+        this[_plugin_options] = options;
+        options.config = config;
+        config.addPartialsDir(path.join(__dirname, 'partials'));
+        config.addMahabhuta(module.exports.mahabhutaArray(options));
+    }
+
+    get config() { return this[_plugin_config]; }
+    get options() { return this[_plugin_options]; }
 
     sortBy(sort) {
-        this._config.pluginData(pluginName).sortBy = sort;
+        this.config.pluginData(pluginName).sortBy = sort;
         return this;
     }
 
     headerTemplate(template) {
-        this._config.pluginData(pluginName).headerTemplate = template;
+        this.config.pluginData(pluginName).headerTemplate = template;
         return this;
     }
 
     tagsDirectory(dirName) {
-        this._config.pluginData(pluginName).pathIndexes = dirName;
+        this.config.pluginData(pluginName).pathIndexes = dirName;
         return this;
     }
 
@@ -88,7 +96,12 @@ function doTagsForDocument(config, metadata, template) {
 	} else return Promise.resolve("");
 };
 
-module.exports.mahabhuta = new mahabhuta.MahafuncArray(pluginName, {});
+module.exports.mahabhutaArray = function(options) {
+    let ret = new mahabhuta.MahafuncArray(pluginName, options);
+    ret.addMahafunc(new TagCloudElement());
+    ret.addMahafunc(new TagsForDocumentElement());
+    return ret;
+};
 
 class TagCloudElement extends mahabhuta.CustomElement {
     get elementName() { return "tag-cloud"; }
@@ -97,7 +110,8 @@ class TagCloudElement extends mahabhuta.CustomElement {
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
-        let pluginData = metadata.config.pluginData(pluginName);
+        // TODO replace this usage of pluginData
+        let pluginData = this.array.options.config.pluginData(pluginName);
         if (!pluginData.tagCloudData) pluginData.tagCloudData = await genTagCloudData(metadata.config);
         /* console.log('******* tag-cloud tags:');
         for (let tagdata of tagCloudData.tagData) {
@@ -110,20 +124,18 @@ class TagCloudElement extends mahabhuta.CustomElement {
         }, "");
         // console.log(tagCloud);
         // console.log(`TagCloudElement ${metadata.document.path} generateSimpleCloud ${(new Date() - startTime) / 1000} seconds`);
-        return akasha.partial(metadata.config, "tagged-content-cloud.html.ejs", {
+        return akasha.partial(this.array.options.config, "tagged-content-cloud.html.ejs", {
             tagCloud, id, clazz, style
         });
     }
 }
-module.exports.mahabhuta.addMahafunc(new TagCloudElement());
 
 class TagsForDocumentElement extends mahabhuta.CustomElement {
     get elementName() { return "tags-for-document"; }
     process($element, metadata, dirty, done) {
-        return doTagsForDocument(metadata.config, metadata, "tagged-content-doctags.html.ejs");
+        return doTagsForDocument(this.array.options.config, metadata, "tagged-content-doctags.html.ejs");
     }
 }
-module.exports.mahabhuta.addMahafunc(new TagsForDocumentElement());
 
 var tagPageUrl = function(config, tagName) {
     return config.pluginData(pluginName).pathIndexes + tag2encode4url(tagName) +'.html';

@@ -11,9 +11,9 @@
     "type": "git",
     "url": "git://github.com/akashacms/akashacms-tagged-content.git"
   },
-  "version": "0.6.4",
+  "version": "0.7.0",
   "engines": {
-    "node": ">=8.4"
+    "node": ">=12.4"
   },
   "dependencies": {
     "tagcloud-generator": "*",
