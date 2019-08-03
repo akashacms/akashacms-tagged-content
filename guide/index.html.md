@@ -30,7 +30,7 @@ Add the following to `package.json`
 ```
 "dependencies": {
       ...
-      "akashacms-tagged-content": ">=0.6",
+      "akashacms-tagged-content": ">=0.7.1",
       ...
 }
 ```
@@ -44,20 +44,31 @@ Add the following to `config.js`
 ```
 config
     ...
-    .use(require('akashacms-tagged-content'))
+    .use(require('akashacms-tagged-content'), {
+        sortBy: 'title',
+        // @tagDescription@ can only appear once
+        headerTemplate: "---\ntitle: @title@\nlayout: tagpage.html.ejs\n---\n<p><a href='./index.html'>Tag Index</a></p><p>Pages with tag @tagName@</p><p>@tagDescription@</p>",
+        indexTemplate: "---\ntitle: Tags for AkashaCMS Example site\nlayout: tagpage.html.ejs\n---\n",
+        pathIndexes: '/tags/',
+        tags: [
+            {
+                name: "Tag Name 1",
+                description: "Tag description text"
+            }
+        ]
+    })
     ...
-
-config.plugin("akashacms-tagged-content")
-    .sortBy('title')
-    .headerTemplate("---\ntitle: @title@\nlayout: tagpage.html.ejs\n---\n<p>Pages with tag @tagName@</p>")
-    .tagsDirectory('/tags/');
 ```
 
 _sortBy_: As suggested by the function name, this controls the sorting of tag entries in a tag index page.
 
 _headerTemplate_: The tag index pages are dynamically generated, meaning that you don't create them yourself.  This value controls the initial content of each.
 
-_tagsDirectory_: Controls where, within the site, the tag index pages are rendered.
+_pathIndexes_: Controls where, within the site, the tag index pages are rendered.
+
+_indexTemplate_: Is the template used to generate the `index.html` in the tags directory.
+
+_tags_: Is an array of items where we can list descriptions for a given tag.
 
 # Custom Tags
 
@@ -82,3 +93,19 @@ The tags are rendered through the `tagged-content-doctags.html.ejs` template.
 ```
 
 The _hasTag_ function is useful for checking whether a given tag is set, or not.  This will allow you to modify the content based on the document tags.
+
+```
+<tag-list-container/>
+```
+
+Generated into the `index.html` for the tags directory.  This is a wrapper element meant to surround the tag list.
+
+The template is `tagged-content-list-container.html.ejs`, so override this to customize the presentation.
+
+```
+<tag-list-item/>
+```
+
+This is an individual item in the tag list in the `index.html` in the tags directory.
+
+The template is `tagged-content-list-item.html.ejs`, so override this to customize the presentation.
