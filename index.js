@@ -69,31 +69,41 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         return href.startsWith(this.options.pathIndexes);
     }
 
-	onSiteRendered(config) {
-		return module.exports.generateTagIndexes(config);
-	}
+    onSiteRendered(config) {
+        return module.exports.generateTagIndexes(config);
+    }
 
     hasTag(tags, tag) {
         var taglist = tagParse(tags);
         // console.log(`documentHasTag ${tag} ${util.inspect(taglist)}`);
         return taglist ? taglist.includes(tag) : false;
     }
+
+    tagDescription(tagnm) {
+        if (!this.options.tags) return "";
+        for (let tagitem of this.options.tags) {
+            if (tagitem.name === tagnm) {
+                return tagitem.description;
+            }
+        }
+        return "";
+    }
 };
 
 
 function doTagsForDocument(config, metadata, template) {
-	var taglist = documentTags({ metadata: metadata });
-	if (taglist) {
-		// log('doTagsForDocument '+ util.inspect(taglist));
-		return akasha.partial(config, template, {
-			tagz: taglist.map(tag => {
-				return {
-					tagName: tag,
-					tagUrl: tagPageUrl(config, tag)
-				};
-			})
-		});
-	} else return Promise.resolve("");
+    var taglist = documentTags({ metadata: metadata });
+    if (taglist) {
+        // log('doTagsForDocument '+ util.inspect(taglist));
+        return akasha.partial(config, template, {
+            tagz: taglist.map(tag => {
+                return {
+                    tagName: tag,
+                    tagUrl: tagPageUrl(config, tag)
+                };
+            })
+        });
+    } else return Promise.resolve("");
 };
 
 module.exports.mahabhutaArray = function(options) {
@@ -195,19 +205,19 @@ var sortByTitle = function(a,b) {
 };
 
 var sortByDate = function(a,b) {
-	var aPublicationDate = Date.parse(
-		a.metadata.publicationDate ? a.metadata.publicationDate : a.stat.mtime
-	);
-	var bPublicationDate = Date.parse(
-		b.metadata.publicationDate ? b.metadata.publicationDate : b.stat.mtime
-	);
-	if (aPublicationDate < bPublicationDate) return -1;
-	else if (aPublicationDate === bPublicationDate) return 0;
-	else return 1;
+    var aPublicationDate = Date.parse(
+        a.metadata.publicationDate ? a.metadata.publicationDate : a.stat.mtime
+    );
+    var bPublicationDate = Date.parse(
+        b.metadata.publicationDate ? b.metadata.publicationDate : b.stat.mtime
+    );
+    if (aPublicationDate < bPublicationDate) return -1;
+    else if (aPublicationDate === bPublicationDate) return 0;
+    else return 1;
 };
 
 function noteError(err) {
-	if (err) error(err);
+    if (err) error(err);
 }
 
 module.exports.generateTagIndexes = async function (config) {
@@ -265,7 +275,8 @@ module.exports.generateTagIndexes = async function (config) {
                     
                     var entryText = config.plugin(pluginName).options.headerTemplate
                         .replace("@title@", tagData.tagName)
-                        .replace("@tagName@", tagData.tagName);
+                        .replace("@tagName@", tagData.tagName)
+                        .replace("@tagDescription@", tagData.tagDescription);
                     entryText += text2write;
 
                     await fs.writeFile(path.join(tagsDir, tagFileName), entryText);
@@ -334,7 +345,11 @@ async function genTagCloudData(config) {
                     }
                 }
                 if (typeof td === 'undefined' || !td) {
-                    td = { tagName: tagnm, entries: [] };
+                    td = { 
+                        tagName: tagnm,
+                        tagDescription: config.plugin(pluginName).tagDescription(tagnm),
+                        entries: [] 
+                    };
                     tagCloudData.tagData.push(td);
                 }
                 td.entries.push(document);
