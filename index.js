@@ -51,22 +51,22 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
     get options() { return this[_plugin_options]; }
 
     sortBy(sort) {
-        this.config.pluginData(pluginName).sortBy = sort;
+        this.options.sortBy = sort;
         return this;
     }
 
     headerTemplate(template) {
-        this.config.pluginData(pluginName).headerTemplate = template;
+        this.options.headerTemplate = template;
         return this;
     }
 
     tagsDirectory(dirName) {
-        this.config.pluginData(pluginName).pathIndexes = dirName;
+        this.options.pathIndexes = dirName;
         return this;
     }
 
     isLegitLocalHref(config, href) {
-        return href.startsWith(config.pluginData(pluginName).pathIndexes);
+        return href.startsWith(this.options.pathIndexes);
     }
 
 	onSiteRendered(config) {
@@ -110,21 +110,22 @@ class TagCloudElement extends mahabhuta.CustomElement {
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
-        // TODO replace this usage of pluginData
-        let pluginData = this.array.options.config.pluginData(pluginName);
-        if (!pluginData.tagCloudData) pluginData.tagCloudData = await genTagCloudData(metadata.config);
+        let thisConfig = this.array.options.config;
+        if (!this.array.options.tagCloudData) {
+            this.array.options.tagCloudData = await genTagCloudData(thisConfig);
+        }
         /* console.log('******* tag-cloud tags:');
         for (let tagdata of tagCloudData.tagData) {
             console.log(`     ${tagdata.tagName}`);
         } */
         // console.log(util.inspect(tagCloudData.tagData));
         // console.log(`TagCloudElement ${metadata.document.path} genTagCloudData ${(new Date() - startTime) / 1000} seconds`);
-        var tagCloud = taggen.generateSimpleCloud(pluginData.tagCloudData.tagData, tagName => {
-            return tagPageUrl(metadata.config, tagName);
+        var tagCloud = taggen.generateSimpleCloud(this.array.options.tagCloudData.tagData, tagName => {
+            return tagPageUrl(thisConfig, tagName);
         }, "");
         // console.log(tagCloud);
         // console.log(`TagCloudElement ${metadata.document.path} generateSimpleCloud ${(new Date() - startTime) / 1000} seconds`);
-        return akasha.partial(this.array.options.config, "tagged-content-cloud.html.ejs", {
+        return akasha.partial(thisConfig, "tagged-content-cloud.html.ejs", {
             tagCloud, id, clazz, style
         });
     }
@@ -138,7 +139,7 @@ class TagsForDocumentElement extends mahabhuta.CustomElement {
 }
 
 var tagPageUrl = function(config, tagName) {
-    return config.pluginData(pluginName).pathIndexes + tag2encode4url(tagName) +'.html';
+    return config.plugin(pluginName).options.pathIndexes + tag2encode4url(tagName) +'.html';
 }
 
 var tagParse = function(tags) {
@@ -213,7 +214,7 @@ module.exports.generateTagIndexes = async function (config) {
     const tagIndexStart = new Date();
     var tagIndexCount = 0;
     var tempDir = new tmp.Dir();
-    var tagsDir = path.join(tempDir.path, config.pluginData(pluginName).pathIndexes);
+    var tagsDir = path.join(tempDir.path, config.plugin(pluginName).options.pathIndexes);
     // log('generateTagIndexes '+ tagsDir);
     await new Promise((resolve, reject) => {
         fs.mkdir(tagsDir, err => {
@@ -241,10 +242,10 @@ module.exports.generateTagIndexes = async function (config) {
                     var tagNameEncoded = tag2encode4url(tagData.tagName);
                     var tagFileName = tagNameEncoded +".html.ejs";
 
-                    if (config.pluginData(pluginName).sortBy === 'date') {
+                    if (config.plugin(pluginName).options.sortBy === 'date') {
                         tagData.entries.sort(sortByDate);
                         tagData.entries.reverse();
-                    } else if (config.pluginData(pluginName).sortBy === 'title') {
+                    } else if (config.plugin(pluginName).options.sortBy === 'title') {
                         tagData.entries.sort(sortByTitle);
                     } else {
                         tagData.entries.sort(sortByTitle);
@@ -262,7 +263,7 @@ module.exports.generateTagIndexes = async function (config) {
                     // let tagFile2Write = new Date();
                     // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
                     
-                    var entryText = config.pluginData(pluginName).headerTemplate
+                    var entryText = config.plugin(pluginName).options.headerTemplate
                         .replace("@title@", tagData.tagName)
                         .replace("@tagName@", tagData.tagName);
                     entryText += text2write;
@@ -274,7 +275,7 @@ module.exports.generateTagIndexes = async function (config) {
                                     tagsDir,
                                     tagFileName,
                                     config.renderDestination,
-                                    config.pluginData(pluginName).pathIndexes);
+                                    config.plugin(pluginName).options.pathIndexes);
 
                     let tagFileEnd = new Date();
                     console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
