@@ -11,7 +11,7 @@
     "type": "git",
     "url": "git://github.com/akashacms/akashacms-tagged-content.git"
   },
-  "version": "0.7.0",
+  "version": "0.7.1",
   "engines": {
     "node": ">=12.4"
   },

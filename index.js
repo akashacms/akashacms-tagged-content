@@ -110,6 +110,8 @@ module.exports.mahabhutaArray = function(options) {
     let ret = new mahabhuta.MahafuncArray(pluginName, options);
     ret.addMahafunc(new TagCloudElement());
     ret.addMahafunc(new TagsForDocumentElement());
+    ret.addMahafunc(new TagsListItemElement());
+    ret.addMahafunc(new TagsListContainerElement());
     return ret;
 };
 
@@ -145,6 +147,46 @@ class TagsForDocumentElement extends mahabhuta.CustomElement {
     get elementName() { return "tags-for-document"; }
     process($element, metadata, dirty, done) {
         return doTagsForDocument(this.array.options.config, metadata, "tagged-content-doctags.html.ejs");
+    }
+}
+
+class TagsListContainerElement extends mahabhuta.CustomElement {
+    get elementName() { return "tag-list-container"; }
+    process($element, metadata, dirty, done) {
+        const template = $element.attr('template') 
+                ? $element.attr('template')
+                :  "tagged-content-list-container.html.ejs";
+        const id = $element.attr('id');
+        const additionalClasses = $element.attr('additional-classes')
+                ? $element.attr('additional-classes')
+                : "";
+        const content = $element.html()
+                ? $element.html()
+                : "";
+        return akasha.partial(this.array.options.config, template, {
+            id, additionalClasses, content
+        });
+    }
+}
+
+class TagsListItemElement extends mahabhuta.CustomElement {
+    get elementName() { return "tag-list-item"; }
+    process($element, metadata, dirty, done) {
+        const template = $element.attr('template') 
+                ? $element.attr('template')
+                :  "tagged-content-list-item.html.ejs";
+        const id = $element.attr('id');
+        const additionalClasses = $element.attr('additional-classes')
+                ? $element.attr('additional-classes')
+                : "";
+        const name = $element.attr('name');
+        const href = $element.attr('href');
+        const description = $element.html()
+                ? $element.html()
+                : "";
+        return akasha.partial(this.array.options.config, template, {
+            id, additionalClasses, description, name, href
+        });
     }
 }
 
@@ -249,8 +291,8 @@ module.exports.generateTagIndexes = async function (config) {
                 try {
                     let tagFileStart = new Date();
                     // log(util.inspect(tagData));
-                    var tagNameEncoded = tag2encode4url(tagData.tagName);
-                    var tagFileName = tagNameEncoded +".html.ejs";
+                    let tagNameEncoded = tag2encode4url(tagData.tagName);
+                    let tagFileName = tagNameEncoded +".html.ejs";
 
                     if (config.plugin(pluginName).options.sortBy === 'date') {
                         tagData.entries.sort(sortByDate);
@@ -266,14 +308,14 @@ module.exports.generateTagIndexes = async function (config) {
                     // let tagFileSort = new Date();
                     // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
 
-                    var text2write = await akasha.partial(config,
+                    let text2write = await akasha.partial(config,
                             "tagged-content-tagpagelist.html.ejs",
                             { entries: tagData.entries });
 
                     // let tagFile2Write = new Date();
                     // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
                     
-                    var entryText = config.plugin(pluginName).options.headerTemplate
+                    let entryText = config.plugin(pluginName).options.headerTemplate
                         .replace("@title@", tagData.tagName)
                         .replace("@tagName@", tagData.tagName)
                         .replace("@tagDescription@", tagData.tagDescription);
@@ -305,6 +347,40 @@ module.exports.generateTagIndexes = async function (config) {
             else resolve(results);
         });
     });
+
+    if (config.plugin(pluginName).options.indexTemplate) {
+        var entryText = config.plugin(pluginName).options.indexTemplate;
+
+        var tags = '';
+        for (let tagData of tagCloudData.tagData) {
+
+            let tagNameEncoded = tag2encode4url(tagData.tagName);
+            let tagFileName = 
+                config.plugin(pluginName).options.pathIndexes 
+                + tagNameEncoded +".html";
+            tags += `
+            <tag-list-item 
+                name="${tagData.tagName}"
+                href="${tagFileName}">${tagData.tagDescription}</tag-list-item>
+            `;
+        }
+        if (tags !== '') {
+            entryText += `
+            
+            <tag-list-container>
+            ${tags}
+            </tag-list-container>
+            `;
+        }
+
+        await fs.writeFile(path.join(tagsDir, "index.html.ejs"), entryText);
+        await akasha.renderDocument(
+                        config,
+                        tagsDir,
+                        "index.html.ejs",
+                        config.renderDestination,
+                        config.plugin(pluginName).options.pathIndexes);
+    }
 
     await fs.remove(tempDir.path);
 

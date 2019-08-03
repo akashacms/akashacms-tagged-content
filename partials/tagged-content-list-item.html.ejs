@@ -1,0 +1,6 @@
+<div  <% if (typeof id !== 'undefined') { %>id="<%= id %>" <% } %> class="tagged-content-tag-list-item <%= additionalClasses %>" >
+<strong><a href="<%= href %>"><%= name %></a></strong><% 
+    if (typeof description !== 'undefined' && description != '') {
+        %>: <%- description %>
+    <% } %>
+</div>
