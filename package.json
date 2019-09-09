@@ -16,6 +16,7 @@
     "node": ">=12.4"
   },
   "dependencies": {
+    "rss": "^1.2.2",
     "tagcloud-generator": "*",
     "temporary": "*",
     "fs-extra": "*",

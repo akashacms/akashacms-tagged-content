@@ -1,0 +1,17 @@
+<div <% if (typeof id !== 'undefined') { %>id="<%= id %>" <% } %> class="<%= additionalClasses %>">
+<ul>
+    <% for (var tagEntry of entries) {
+        let encoded = tag2encode4url(tagEntry.tagName);
+        let rssHREF = pathIndexes + encoded + '.xml';
+        %>
+        <li>
+        <a rel="alternate" type="application/rss+xml" href="<%= rssHREF %>">
+            <%= tagEntry.tagName %>
+        </a><% if (typeof tagEntry.teaser !== 'undefined') {
+            %>: <%= tagEntry.teaser %><%
+        }
+        %>
+        </li>
+    <% } %>
+</ul>
+</div>

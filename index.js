@@ -22,6 +22,7 @@
 const path     = require('path');
 const util     = require('util');
 const fs       = require('fs-extra');
+const RSS      = require('rss');
 const taggen   = require('tagcloud-generator');
 const tmp      = require('temporary');
 const akasha   = require('akasharender');
@@ -69,6 +70,10 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         return href.startsWith(this.options.pathIndexes);
     }
 
+    beforeSiteRendered(config) {
+        return module.exports.generateTagIndexes(config);
+    }
+
     onSiteRendered(config) {
         return module.exports.generateTagIndexes(config);
     }
@@ -110,6 +115,7 @@ module.exports.mahabhutaArray = function(options) {
     let ret = new mahabhuta.MahafuncArray(pluginName, options);
     ret.addMahafunc(new TagCloudElement());
     ret.addMahafunc(new TagsForDocumentElement());
+    ret.addMahafunc(new TagsFeedsListElement());
     ret.addMahafunc(new TagsListItemElement());
     ret.addMahafunc(new TagsListContainerElement());
     return ret;
@@ -147,6 +153,29 @@ class TagsForDocumentElement extends mahabhuta.CustomElement {
     get elementName() { return "tags-for-document"; }
     process($element, metadata, dirty, done) {
         return doTagsForDocument(this.array.options.config, metadata, "tagged-content-doctags.html.ejs");
+    }
+}
+
+class TagsFeedsListElement extends mahabhuta.CustomElement {
+    get elementName() { return "tags-feeds-list"; }
+    async process($element, metadata, dirty, done) {
+        const template = $element.attr('template') 
+                ? $element.attr('template')
+                :  "tagged-content-feedlist.html.ejs";
+        const id = $element.attr('id');
+        const additionalClasses = $element.attr('additional-classes')
+                ? $element.attr('additional-classes')
+                : "";
+        const tagCloudData = await genTagCloudData(this.array.options.config);
+
+        // console.log(`TagsFeedsListElement `, this.array.options);
+        // console.log(`TagsFeedsListElement `, tagCloudData);
+
+        return akasha.partial(this.array.options.config, template, {
+            id, additionalClasses, tag2encode4url,
+            pathIndexes: this.array.options.pathIndexes,
+            entries: tagCloudData.tagData
+        });
     }
 }
 
@@ -293,6 +322,7 @@ module.exports.generateTagIndexes = async function (config) {
                     // log(util.inspect(tagData));
                     let tagNameEncoded = tag2encode4url(tagData.tagName);
                     let tagFileName = tagNameEncoded +".html.ejs";
+                    let tagRSSFileName = tagNameEncoded +".xml";
 
                     if (config.plugin(pluginName).options.sortBy === 'date') {
                         tagData.entries.sort(sortByDate);
@@ -329,6 +359,34 @@ module.exports.generateTagIndexes = async function (config) {
                                     tagFileName,
                                     config.renderDestination,
                                     config.plugin(pluginName).options.pathIndexes);
+                    
+                    // Generate RSS feeds for each tag
+
+                    const rssFeed = new RSS({
+                        title: "Documents tagged with " + tagData.tagName,
+                        site_url: `${config.root_url}${tagRSSFileName}`,
+                    });
+                    
+                    for (let tagEntry of tagData.entries) {
+                        let u = new URL(config.root_url);
+                        u.pathname = tagEntry.renderpath;
+                        rssFeed.item({
+                            title: tagEntry.metadata.title,
+                            description: tagEntry.teaser ? tagEntry.teaser : "",
+                            url: u.toString(),
+                            date: tagEntry.metadata.publicationDate 
+                                ? tagEntry.metadata.publicationDate : tagEntry.stat.mtime
+                        });
+                    }
+
+                    const xml = rssFeed.xml();
+                    await fs.writeFile(
+                        path.join(config.renderDestination, config.plugin(pluginName).options.pathIndexes, tagRSSFileName), 
+                        xml,
+                        { encoding: 'utf8' });
+
+
+                    // Finish up data collection
 
                     let tagFileEnd = new Date();
                     console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
