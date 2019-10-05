@@ -29,10 +29,7 @@ const akasha   = require('akasharender');
 const mahabhuta = akasha.mahabhuta;
 const parallelLimit = require('run-parallel-limit');
 
-const log   = require('debug')('akasha:tagged-content-plugin');
-const error = require('debug')('akasha:error-tagged-content-plugin');
-
-const pluginName = "akashacms-tagged-content";
+const pluginName = "@akashacms/plugins-tagged-content";
 
 const _plugin_config = Symbol('config');
 const _plugin_options = Symbol('options');
@@ -416,11 +413,15 @@ module.exports.generateTagIndexes = async function (config) {
             let tagFileName = 
                 config.plugin(pluginName).options.pathIndexes 
                 + tagNameEncoded +".html";
-            tags += `
-            <tag-list-item 
-                name="${tagData.tagName}"
-                href="${tagFileName}">${tagData.tagDescription}</tag-list-item>
-            `;
+            let $ = mahabhuta.parse(`
+                    <tag-list-item
+                        name=""
+                        href=""></tag-list-item>
+                    `);
+            $('tag-list-item').attr('name', tagData.tagName);
+            $('tag-list-item').attr('href', tagFileName);
+            $('tag-list-item').append(tagData.tagDescription);
+            tags += $.html();
         }
         if (tags !== '') {
             entryText += `

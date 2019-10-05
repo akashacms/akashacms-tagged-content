@@ -3,15 +3,15 @@ layout: plugin-documentation.html.ejs
 title: AskashaCMS Tagged-Content plugin documentation
 ---
 
-_Tags_ are an excellent way to categorize and organize content.  Other platforms like Drupal or Wordpress or Blogger have similar features.  In `akashacms-tagged-content` you add a list of tags to the document frontmatter, and three tools are available:
+_Tags_ are an excellent way to categorize and organize content.  Other platforms like Drupal or Wordpress or Blogger have similar features.  In `@akashacms/plugins-tagged-content` you add a list of tags to the document front-matter, and three tools are available:
 
 * A `tags-for-document` custom element shows the tags for the current document
 * A `tag-cloud` custom element shows all tags, as a tag cloud.  I know tag clouds stopped being popular, but I like them
 * A set of pages can be generated, one page per tag, showing the items associated with that tag
 
-The tags are stored in the `tags` field in the document frontmatter.  They can be a YAML array like:
+The tags are stored in the `tags` field in the document front-matter.  They can be a YAML array like:
 
-```
+```yaml
 tags:
     - OpenAPI
     - Swagger
@@ -19,7 +19,7 @@ tags:
 
 Or they can be a comma-separated string, like:
 
-```
+```yaml
 tags: OpenAPI, Swagger
 ```
 
@@ -27,10 +27,10 @@ tags: OpenAPI, Swagger
 
 Add the following to `package.json`
 
-```
+```json
 "dependencies": {
       ...
-      "akashacms-tagged-content": ">=0.7.1",
+      "akashacms-tagged-content": "^0.7.x",
       ...
 }
 ```
@@ -41,10 +41,10 @@ Once added to `package.json` run: `npm install`
 
 Add the following to `config.js`
 
-```
+```js
 config
     ...
-    .use(require('akashacms-tagged-content'), {
+    .use(require('@akashacms/plugins-tagged-content'), {
         sortBy: 'title',
         // @tagDescription@ can only appear once
         headerTemplate: "---\ntitle: @title@\nlayout: tagpage.html.ejs\n---\n<p><a href='./index.html'>Tag Index</a></p><p>Pages with tag @tagName@</p><p>@tagDescription@</p>",
@@ -72,7 +72,7 @@ _tags_: Is an array of items where we can list descriptions for a given tag.
 
 # Custom Tags
 
-```
+```html
 <tag-cloud id="id" class="class" style="style"/>
 ```
 
@@ -80,7 +80,7 @@ Generates a tag cloud.  The wrapper has `id` and `class` and `style` attributes 
 
 The tag cloud is rendered through the `tagged-content-cloud.html.ejs` template.
 
-```
+```html
 <tags-for-document/>
 ```
 
@@ -88,13 +88,13 @@ Generates an indicator of the tags for this document, linking them to the corres
 
 The tags are rendered through the `tagged-content-doctags.html.ejs` template.
 
-```
-<% ... config.plugin('akashacms-tagged-content').hasTag(tags, 'Doctor Who') ... %>
+```php
+<% ... config.plugin('@akashacms/plugins-tagged-content').hasTag(tags, 'Doctor Who') ... %>
 ```
 
 The _hasTag_ function is useful for checking whether a given tag is set, or not.  This will allow you to modify the content based on the document tags.
 
-```
+```html
 <tag-list-container/>
 ```
 
@@ -102,7 +102,7 @@ Generated into the `index.html` for the tags directory.  This is a wrapper eleme
 
 The template is `tagged-content-list-container.html.ejs`, so override this to customize the presentation.
 
-```
+```html
 <tag-list-item/>
 ```
 

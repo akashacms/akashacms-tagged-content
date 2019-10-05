@@ -7,7 +7,7 @@
     "test": "cd akashacms-example && npm run test",
     "setup": "npm install && npm run clone-example && npm run update-example-code",
     "clone-example": "rm -rf akashacms-example && git clone https://github.com/akashacms/akashacms-example && cd akashacms-example && npm install",
-    "update-example-code": "cd akashacms-example && cp ../../*.js node_modules/akashacms-tagged-content && cp ../../partials/* node_modules/akashacms-tagged-content/partials",
+    "update-example-code": "cd akashacms-example && cp ../../*.js node_modules/@akashacms/plugins-tagged-content && cp ../../partials/* node_modules/@akashacms/plugins-tagged-content/partials",
     "build-example": "cd akashacms-example && npm run build",
     "clean": "rm -rf node_modules out akashacms-example"
   },
