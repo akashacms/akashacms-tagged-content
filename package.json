@@ -15,6 +15,9 @@
   "engines": {
     "node": ">=12.4"
   },
+  "scripts": {
+      "dopublish": "npm publish --access public"
+  },
   "dependencies": {
     "rss": "^1.2.2",
     "tagcloud-generator": "*",
