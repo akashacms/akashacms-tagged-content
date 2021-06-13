@@ -335,9 +335,16 @@ module.exports.generateTagIndexes = async function (config) {
                     // let tagFileSort = new Date();
                     // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
 
+                    /* console.log(`tagged-content ${tagData.tagName} ${tagNameEncoded} ${tagFileName} with ${tagData.entries.length} entries`, tagData.entries);
+                    for (let e of tagData.entries) {
+                        console.log(`... ${tagFileName} ${e.metadata.title}`)
+                    } */
+
                     let text2write = await akasha.partial(config,
                             "tagged-content-tagpagelist.html.ejs",
                             { entries: tagData.entries });
+
+                    // console.log(`tagged-content ${tagData.tagName} ${tagNameEncoded} ${tagFileName} ==> ${text2write}`);
 
                     // let tagFile2Write = new Date();
                     // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
@@ -462,15 +469,35 @@ async function genTagCloudData(config) {
         tagData: []
     };
 
-    const documents = (await akasha.filecache).documents.search(config, {
+    // For some reason using documents.search isn't finding the documents.
+    // But all we need is the pathnames anyway, which .paths gives us.
+    const paths = (await akasha.filecache).documents.paths();
+    // console.log(`genTagCloudData paths found ${paths.length} items`, paths);
+
+    /* const documents = (await akasha.filecache).documents.search(config, {
         // THIS DOES NOT WORK renderers: [ akasha.HTMLRenderer ]
-        glob: '**/*.html'
+        filterfunc: function (config, options, doc) {
+            if ((doc.baseMetadata && doc.baseMetadata.tags)
+             || (doc.docMetadata && doc.docMetadata.tags)) {
+                return true;
+            } else {
+                return false;
+            }
+        },
+        // renderpathmatch: /\.html$/ // '**--/*.html'
     });
+    console.log(`genTagCloudData documents.search found ${documents.length} items`, documents); */
 
     // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
 
-    for (let document of documents) {
+    for (let p of paths) {
+        if (!p.renderPath.match(/\.html$/)) {
+            // console.log(`Skipping ${p.vpath}`);
+            continue;
+        }
+        let document = await akasha.readDocument(config, p.vpath);
         document.taglist = documentTags(document);
+        // console.log(`genTagCloudData ${document.fspath} `, document.taglist);
         if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
             // console.log(util.inspect(document.taglist));
             for (let tagnm of document.taglist) {
