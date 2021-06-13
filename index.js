@@ -359,6 +359,8 @@ module.exports.generateTagIndexes = async function (config) {
                     
                     // Generate RSS feeds for each tag
 
+                    let tagFileRendered = new Date() - tagFileStart;
+
                     const rssFeed = new RSS({
                         title: "Documents tagged with " + tagData.tagName,
                         site_url: `${config.root_url}${tagRSSFileName}`,
@@ -382,11 +384,10 @@ module.exports.generateTagIndexes = async function (config) {
                         xml,
                         { encoding: 'utf8' });
 
-
                     // Finish up data collection
 
                     let tagFileEnd = new Date();
-                    console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
+                    console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, rendered in ${tagFileRendered / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
                     
                     tagIndexCount++;
                     cb();
@@ -461,9 +462,9 @@ async function genTagCloudData(config) {
         tagData: []
     };
 
-    var documents = await akasha.documentSearch(config, {
-        // rootPath: '/',
-        renderers: [ akasha.HTMLRenderer ]
+    const documents = (await akasha.filecache).documents.search(config, {
+        // THIS DOES NOT WORK renderers: [ akasha.HTMLRenderer ]
+        glob: '**/*.html'
     });
 
     // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
