@@ -21,18 +21,19 @@
 
 const path     = require('path');
 const util     = require('util');
-const fs       = require('fs-extra');
+const fs       = require('fs');
+const fsp      = require('fs/promises');
 const RSS      = require('rss');
 const taggen   = require('tagcloud-generator');
-const tmp      = require('temporary');
 const akasha   = require('akasharender');
 const mahabhuta = akasha.mahabhuta;
-const parallelLimit = require('run-parallel-limit');
+const fastq = require('fastq');
 
 const pluginName = "@akashacms/plugins-tagged-content";
 
 const _plugin_config = Symbol('config');
 const _plugin_options = Symbol('options');
+const _plugin_tagsdir = Symbol('tagsDir');
 
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
     constructor() { super(pluginName); }
@@ -67,16 +68,19 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         return href.startsWith(this.options.pathIndexes);
     }
 
+    // Does this need to run both before AND after?
     beforeSiteRendered(config) {
         return module.exports.generateTagIndexes(config);
     }
 
-    onSiteRendered(config) {
-        return module.exports.generateTagIndexes(config);
-    }
+    /* async onSiteRendered(config) {
+        // let ret = await module.exports.generateTagIndexes(config);
+        await this[_plugin_tempdir].rmdir();
+        // return ret;
+    } */
 
     hasTag(tags, tag) {
-        var taglist = tagParse(tags);
+        var taglist = this.tagParse(tags);
         // console.log(`documentHasTag ${tag} ${util.inspect(taglist)}`);
         return taglist ? taglist.includes(tag) : false;
     }
@@ -90,22 +94,96 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         }
         return "";
     }
+
+    tagPageUrl(config, tagName) {
+        return this.options.pathIndexes + tag2encode4url(tagName) +'.html';
+    }
+
+    tagParse(tags) {
+        if (typeof tags === 'undefined' || !tags) {
+            return [];
+        }
+        if (Array.isArray(tags)) {
+            return tags;
+        }
+        var taglist = [];
+        var re = /\s*,\s*/;
+        tags.split(re).forEach(function(tag) {
+            taglist.push(tag.trim());
+        });
+        return taglist;
+    }
+
+    documentTags(document) {
+        // console.log('documentTags '+ util.inspect(document.metadata));
+        if (document.docMetadata && document.docMetadata.tags) {
+            // parse tags
+            // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
+            // util.log(entry.frontmatter.tags);
+            var taglist = this.tagParse(document.docMetadata.tags);
+            // console.log(`documentTags taglist ${document.relpath} ${document.metadata.tags} ==> ${util.inspect(taglist)}`);
+            return taglist;
+        } else {
+            // console.log(`documentTags ${document.relpath} NO taglist`);
+            return undefined;
+        }
+    }
+
+    async documentsWithTags() {
+        const filecache = await akasha.filecache;
+        const coll = filecache.documents.getCollection(filecache.documents.collection);
+        return coll.find({
+            renderPath: /\.html$/,
+            docMetadata: { tags: { $exists: true } }
+        });
+    }
+
+    async allTags() {
+        const _documents = await this.documentsWithTags();
+        let tagnames = [];
+        for (let document of _documents) {
+            document.taglist = this.tagParse(document.docMetadata.tags);
+            for (let tagnm of document.taglist) {
+                let found = false;
+                for (let nm of tagnames) {
+                    if (nm.tagName.toLowerCase() === tagnm.toLowerCase()) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) tagnames.push({
+                    tagName: tagnm,
+                    tagDescription: this.tagDescription(tagnm)
+                });
+            }
+        }
+        tagnames = tagnames.sort((a, b) => {
+            var tagA = a.tagName.toLowerCase();
+            var tagB = b.tagName.toLowerCase();
+            if (tagA < tagB) return -1;
+            if (tagA > tagB) return 1;
+            return 0;
+        });
+
+        return tagnames;
+    }
 };
 
 
-function doTagsForDocument(config, metadata, template) {
-    var taglist = documentTags({ metadata: metadata });
+async function doTagsForDocument(config, metadata, template) {
+    const plugin = config.plugin(pluginName);
+    var taglist = plugin.documentTags({ metadata: metadata });
     if (taglist) {
         // log('doTagsForDocument '+ util.inspect(taglist));
         return akasha.partial(config, template, {
             tagz: taglist.map(tag => {
                 return {
                     tagName: tag,
-                    tagUrl: tagPageUrl(config, tag)
+                    tagUrl: plugin.tagPageUrl(config, tag)
                 };
             })
         });
-    } else return Promise.resolve("");
+    } else return "";
 };
 
 module.exports.mahabhutaArray = function(options) {
@@ -121,6 +199,7 @@ module.exports.mahabhutaArray = function(options) {
 class TagCloudElement extends mahabhuta.CustomElement {
     get elementName() { return "tag-cloud"; }
     async process($element, metadata, dirty) {
+        const plugin = config.plugin(pluginName);
         // let startTime = new Date();
         let id = $element.attr('id');
         let clazz = $element.attr('class');
@@ -136,7 +215,7 @@ class TagCloudElement extends mahabhuta.CustomElement {
         // console.log(util.inspect(tagCloudData.tagData));
         // console.log(`TagCloudElement ${metadata.document.path} genTagCloudData ${(new Date() - startTime) / 1000} seconds`);
         var tagCloud = taggen.generateSimpleCloud(this.array.options.tagCloudData.tagData, tagName => {
-            return tagPageUrl(thisConfig, tagName);
+            return plugin.tagPageUrl(thisConfig, tagName);
         }, "");
         // console.log(tagCloud);
         // console.log(`TagCloudElement ${metadata.document.path} generateSimpleCloud ${(new Date() - startTime) / 1000} seconds`);
@@ -156,6 +235,8 @@ class TagsForDocumentElement extends mahabhuta.CustomElement {
 class TagsFeedsListElement extends mahabhuta.CustomElement {
     get elementName() { return "tags-feeds-list"; }
     async process($element, metadata, dirty, done) {
+        const plugin = this.array.options.config.plugin(pluginName);
+        // const start = new Date();
         const template = $element.attr('template') 
                 ? $element.attr('template')
                 :  "tagged-content-feedlist.html.ejs";
@@ -163,16 +244,24 @@ class TagsFeedsListElement extends mahabhuta.CustomElement {
         const additionalClasses = $element.attr('additional-classes')
                 ? $element.attr('additional-classes')
                 : "";
-        const tagCloudData = await genTagCloudData(this.array.options.config);
+        let tagnames = await plugin.allTags();
+
+        // console.log(util.inspect(tagnames));
+    
+        // const tagCloudData = await genTagCloudData(this.array.options.config);
+        // console.log(`TagsFeedsListElement after allTags ${tagnames.length} ${(new Date() - start) / 1000} seconds`);
 
         // console.log(`TagsFeedsListElement `, this.array.options);
         // console.log(`TagsFeedsListElement `, tagCloudData);
 
-        return akasha.partial(this.array.options.config, template, {
+        const ret = await akasha.partial(this.array.options.config, template, {
             id, additionalClasses, tag2encode4url,
             pathIndexes: this.array.options.pathIndexes,
-            entries: tagCloudData.tagData
+            entries: tagnames
         });
+        // console.log(`TagsFeedsListElement after partial ${template} ${(new Date() - start) / 1000} seconds`);
+
+        return ret;
     }
 }
 
@@ -216,40 +305,6 @@ class TagsListItemElement extends mahabhuta.CustomElement {
     }
 }
 
-var tagPageUrl = function(config, tagName) {
-    return config.plugin(pluginName).options.pathIndexes + tag2encode4url(tagName) +'.html';
-}
-
-var tagParse = function(tags) {
-    if (typeof tags === 'undefined' || !tags) {
-        return [];
-    }
-    if (Array.isArray(tags)) {
-        return tags;
-    }
-    var taglist = [];
-    var re = /\s*,\s*/;
-    tags.split(re).forEach(function(tag) {
-        taglist.push(tag.trim());
-    });
-    return taglist;
-}
-
-var documentTags = function(document) {
-    // console.log('documentTags '+ util.inspect(document.metadata));
-    if (document.metadata && document.metadata.tags) {
-        // parse tags
-        // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
-        // util.log(entry.frontmatter.tags);
-        var taglist = tagParse(document.metadata.tags);
-        // console.log(`documentTags taglist ${document.relpath} ${document.metadata.tags} ==> ${util.inspect(taglist)}`);
-        return taglist;
-    } else {
-        // console.log(`documentTags ${document.relpath} NO taglist`);
-        return undefined;
-    }
-}
-
 /**
  * Generate a section of a URL for a tag name.  We want to convert this into
  * something that's safe for URL's, hence changing some of the characters into -'s.
@@ -267,160 +322,176 @@ var tag2encode4url = function(tagName) {
 }
 
 var sortByTitle = function(a,b) {
-	if (a.metadata.title < b.metadata.title) return -1;
-	else if (a.metadata.title === b.metadata.title) return 0;
+	if (a.docMetadata.title < b.docMetadata.title) return -1;
+	else if (a.docMetadata.title === b.docMetadata.title) return 0;
 	else return 1;
 };
 
 var sortByDate = function(a,b) {
     var aPublicationDate = Date.parse(
-        a.metadata.publicationDate ? a.metadata.publicationDate : a.stat.mtime
+        a.docMetadata.publicationDate ? a.docMetadata.publicationDate : a.stat.mtime
     );
     var bPublicationDate = Date.parse(
-        b.metadata.publicationDate ? b.metadata.publicationDate : b.stat.mtime
+        b.docMetadata.publicationDate ? b.docMetadata.publicationDate : b.stat.mtime
     );
     if (aPublicationDate < bPublicationDate) return -1;
     else if (aPublicationDate === bPublicationDate) return 0;
     else return 1;
 };
 
-function noteError(err) {
-    if (err) error(err);
-}
-
 module.exports.generateTagIndexes = async function (config) {
+    const plugin = config.plugin(pluginName);
     const tagIndexStart = new Date();
     var tagIndexCount = 0;
-    var tempDir = new tmp.Dir();
-    var tagsDir = path.join(tempDir.path, config.plugin(pluginName).options.pathIndexes);
-    // log('generateTagIndexes '+ tagsDir);
-    await new Promise((resolve, reject) => {
-        fs.mkdir(tagsDir, err => {
-            if (err) reject(err);
-            else resolve();
-        });
-    })
     var tagCloudData = await genTagCloudData(config);
 
     // log(util.inspect(tagCloudData));
 
-    // This runs the page generation somewhat in parallel.
-    // parallelLimit runs N at a time (see concurrency count below)
-    //
-    // See: https://techsparx.com/nodejs/async/avoid-async-kill-performance.html
-    var results = await new Promise((resolve, reject) => {
-        parallelLimit(tagCloudData.tagData.map(tagData => {
-            // An async function is used here solely to simplify the code.
-            // This is still being executed inside a Promise and we have to
-            // respect the callback function that's being used.
-            return async function(cb) {
-                try {
-                    let tagFileStart = new Date();
-                    // log(util.inspect(tagData));
-                    let tagNameEncoded = tag2encode4url(tagData.tagName);
-                    let tagFileName = tagNameEncoded +".html.ejs";
-                    let tagRSSFileName = tagNameEncoded +".xml";
+    async function renderTagFile(tagData) {
+        const tagFileStart = new Date();
+        // console.log(util.inspect(tagData));
+        const tagNameEncoded = tag2encode4url(tagData.tagName);
+        const tagFileName = tagNameEncoded +".html.ejs";
+        const tagRSSFileName = tagNameEncoded +".xml";
 
-                    if (config.plugin(pluginName).options.sortBy === 'date') {
-                        tagData.entries.sort(sortByDate);
-                        tagData.entries.reverse();
-                    } else if (config.plugin(pluginName).options.sortBy === 'title') {
-                        tagData.entries.sort(sortByTitle);
-                    } else {
-                        tagData.entries.sort(sortByTitle);
-                    }
+        if (plugin.options.sortBy === 'date') {
+            tagData.entries.sort(sortByDate);
+            tagData.entries.reverse();
+        } else if (plugin.options.sortBy === 'title') {
+            tagData.entries.sort(sortByTitle);
+        } else {
+            tagData.entries.sort(sortByTitle);
+        }
 
-                    let tagFileSorted = new Date() - tagFileStart;
+        let tagFileSorted = new Date();
+        // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(new Date() - tagFileStart) / 1000} seconds`);
 
-                    // let tagFileSort = new Date();
-                    // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFileSort - tagFileStart) / 1000} seconds`);
+        const text2write = await akasha.partial(config,
+                "tagged-content-tagpagelist.html.ejs",
+                { entries: tagData.entries });
 
-                    /* console.log(`tagged-content ${tagData.tagName} ${tagNameEncoded} ${tagFileName} with ${tagData.entries.length} entries`, tagData.entries);
-                    for (let e of tagData.entries) {
-                        console.log(`... ${tagFileName} ${e.metadata.title}`)
-                    } */
+        // let tagFile2Write = new Date();
+        // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(new Date() - tagFileStart) / 1000} seconds`);
 
-                    let text2write = await akasha.partial(config,
-                            "tagged-content-tagpagelist.html.ejs",
-                            { entries: tagData.entries });
+        let entryText = plugin.options.headerTemplate
+            .replace("@title@", tagData.tagName)
+            .replace("@tagName@", tagData.tagName)
+            .replace("@tagDescription@", tagData.tagDescription);
+        entryText += text2write;
 
-                    // console.log(`tagged-content ${tagData.tagName} ${tagNameEncoded} ${tagFileName} ==> ${text2write}`);
+        const tagFileWritten = new Date() - tagFileStart;
 
-                    // let tagFile2Write = new Date();
-                    // console.log(`tagged-content 2WRITE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(tagFile2Write - tagFileStart) / 1000} seconds`);
-                    
-                    let entryText = config.plugin(pluginName).options.headerTemplate
-                        .replace("@title@", tagData.tagName)
-                        .replace("@tagName@", tagData.tagName)
-                        .replace("@tagDescription@", tagData.tagDescription);
-                    entryText += text2write;
+        /*
+         * An earlier conception for this was to:
+         * 1. Set up a temporary directory
+         * 2. Mount that temporary directory as /tags
+         * 3. Therefore the FileCache would automatically scan
+         *    that directory
+         * 4. In this function, we write document files to that
+         *    directory
+         * 5. The rendering system would automatically pick up those
+         *    files and render them
+         *
+         * HOWEVER - it was deemed simpler to instead directly render
+         * content to the output directory.  Hence the following code takes
+         * the "entryText", parses it for frontmatter and content, then
+         * computes the correct metadata, renders the content, and writes it
+         * directly to the output directory.
+         */
 
-                    await fs.writeFile(path.join(tagsDir, tagFileName), entryText);
-                    let tagFileWritten = new Date() - tagFileStart;
-                    await akasha.renderDocument(
-                                    config,
-                                    tagsDir,
-                                    tagFileName,
-                                    config.renderDestination,
-                                    config.plugin(pluginName).options.pathIndexes);
-                    
-                    // Generate RSS feeds for each tag
+        const renderer = config.findRendererPath(tagFileName);
+        const fm = renderer.parseFrontmatter(entryText);
+        // Set up the metadata as per HTMLRenderer.newInitMetadata
+        fm.data.document = {
+            basedir: '/',
+            relpath: tagFileName,
+            relrender: renderer.filePath(tagFileName),
+            path: tagFileName,
+            renderTo: renderer.filePath(tagFileName)
+        };
+        fm.data.config = config;
+        fm.data.partialSync = akasha.partialSync.bind(renderer, config);
+        fm.data.partial     = akasha.partial.bind(renderer, config);
+        fm.data.root_url = config.root_url;
+        fm.data.akasha = akasha;
+        fm.data.plugin = config.plugin;
+        fm.data.rendered_date = new Date();
+        fm.data.publicationDate = new Date();
+        // Initial content render
+        fm.data.content = renderer.render(fm.content, fm.data);
 
-                    let tagFileRendered = new Date() - tagFileStart;
+        // Handle the layout field
+        // This function also handles Mahabhuta tags
+        const finalrender = 
+                await renderer.renderForLayoutNew(fm.data.content, fm.data, config);
 
-                    const rssFeed = new RSS({
-                        title: "Documents tagged with " + tagData.tagName,
-                        site_url: `${config.root_url}${tagRSSFileName}`,
-                    });
-                    
-                    for (let tagEntry of tagData.entries) {
-                        let u = new URL(config.root_url);
-                        u.pathname = tagEntry.renderpath;
-                        rssFeed.item({
-                            title: tagEntry.metadata.title,
-                            description: tagEntry.teaser ? tagEntry.teaser : "",
-                            url: u.toString(),
-                            date: tagEntry.metadata.publicationDate 
-                                ? tagEntry.metadata.publicationDate : tagEntry.stat.mtime
-                        });
-                    }
+        // Write the resulting text to the output directory
+        await fsp.writeFile(
+                path.join(config.renderDestination, fm.data.document.renderTo),
+                finalrender);
 
-                    const xml = rssFeed.xml();
-                    await fs.writeFile(
-                        path.join(config.renderDestination, config.plugin(pluginName).options.pathIndexes, tagRSSFileName), 
-                        xml,
-                        { encoding: 'utf8' });
+        // Generate RSS feeds for each tag
 
-                    // Finish up data collection
+        const tagFileRendered = new Date() - tagFileStart;
 
-                    let tagFileEnd = new Date();
-                    console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, rendered in ${tagFileRendered / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
-                    
-                    tagIndexCount++;
-                    cb();
-                } catch (err) {
-                    cb(err);
-                }
-            }
-        }),
-        10, // concurrency count
-        function(err, results) {
-            // gets here on final results
-            if (err) reject(err);
-            else resolve(results);
+        const rssFeed = new RSS({
+            title: "Documents tagged with " + tagData.tagName,
+            site_url: `${config.root_url}${tagRSSFileName}`,
         });
-    });
 
-    if (config.plugin(pluginName).options.indexTemplate) {
-        var entryText = config.plugin(pluginName).options.indexTemplate;
+        for (let tagEntry of tagData.entries) {
+            let u = new URL(config.root_url);
+            u.pathname = tagEntry.renderPath;
+            rssFeed.item({
+                title: tagEntry.docMetadata.title,
+                description: tagEntry.docMetadata.teaser ? tagEntry.docMetadata.teaser : "",
+                url: u.toString(),
+                date: tagEntry.docMetadata.publicationDate 
+                    ? tagEntry.docMetadata.publicationDate : tagEntry.stat.mtime
+            });
+        }
 
-        var tags = '';
+        const xml = rssFeed.xml();
+        await fsp.writeFile(
+            path.join(config.renderDestination, plugin.options.pathIndexes, tagRSSFileName), 
+            xml,
+            { encoding: 'utf8' });
+
+        // Finish up data collection
+
+        const tagFileEnd = new Date();
+        console.log(`tagged-content GENERATE INDEX for ${tagData.tagName} with ${tagData.entries.length} entries, sorted in ${tagFileSorted / 1000} seconds, written in ${tagFileWritten / 1000} seconds, rendered in ${tagFileRendered / 1000} seconds, finished in ${(tagFileEnd - tagFileStart) / 1000} seconds`);
+
+        tagIndexCount++;
+    }
+
+    const queue = fastq.promise(renderTagFile, config.concurrency);
+
+    const waitFor = [];
+    for (let tagData of tagCloudData.tagData) {
+        waitFor.push(queue.push(tagData));
+    }
+    for (let towait of waitFor) {
+        try {
+            let result = await towait;
+        } catch (err) {
+            console.error(`generateTagIndexes ERROR CAUGHT renderTagFile `, err.stack);
+            throw err;
+        }
+    }
+
+    /*
+     * This section - if reinstated - is about creating an index.html in
+     * the tags directory.
+     *
+    if (plugin.options.indexTemplate) {
+        const entryText = plugin.options.indexTemplate;
+
+        let tags = '';
         for (let tagData of tagCloudData.tagData) {
 
             let tagNameEncoded = tag2encode4url(tagData.tagName);
-            let tagFileName = 
-                config.plugin(pluginName).options.pathIndexes 
-                + tagNameEncoded +".html";
+            let tagFileName = plugin.options.pathIndexes + tagNameEncoded +".html";
             let $ = mahabhuta.parse(`
                     <tag-list-item
                         name=""
@@ -440,63 +511,35 @@ module.exports.generateTagIndexes = async function (config) {
             `;
         }
 
-        await fs.writeFile(path.join(tagsDir, "index.html.ejs"), entryText);
-        await akasha.renderDocument(
-                        config,
-                        tagsDir,
-                        "index.html.ejs",
-                        config.renderDestination,
-                        config.plugin(pluginName).options.pathIndexes);
+        await fsp.writeFile(path.join(tagsDir, "index.html.ejs"), entryText);
     }
+    */
 
-    await fs.remove(tempDir.path);
-
-    const tagIndexEnd = new Date();
-
-    console.log(`tagged-content FINISH tag indexing for ${tagIndexCount} indexes in ${(tagIndexEnd - tagIndexStart) / 1000} seconds`);
+    console.log(`tagged-content FINISH tag indexing for ${tagIndexCount} indexes in ${(new Date() - tagIndexStart) / 1000} seconds`);
 };
 
-var tagCloudData;
-
 async function genTagCloudData(config) {
-    if (tagCloudData) {
-        return tagCloudData;
-    }
-    
-    // let startTime = new Date();
+    const plugin = config.plugin(pluginName);
+    let startTime = new Date();
 
-    tagCloudData = {
+    let tagCloudData = {
         tagData: []
     };
 
-    // For some reason using documents.search isn't finding the documents.
-    // But all we need is the pathnames anyway, which .paths gives us.
-    const paths = (await akasha.filecache).documents.paths();
-    // console.log(`genTagCloudData paths found ${paths.length} items`, paths);
+    const filecache = await akasha.filecache;
 
-    /* const documents = (await akasha.filecache).documents.search(config, {
-        // THIS DOES NOT WORK renderers: [ akasha.HTMLRenderer ]
-        filterfunc: function (config, options, doc) {
-            if ((doc.baseMetadata && doc.baseMetadata.tags)
-             || (doc.docMetadata && doc.docMetadata.tags)) {
-                return true;
-            } else {
-                return false;
-            }
-        },
-        // renderpathmatch: /\.html$/ // '**--/*.html'
+    const coll = filecache.documents.getCollection(filecache.documents.collectio);
+    const _documents = coll.find({
+        renderPath: /\.html$/,
+        docMetadata: { tags: { $exists: true } }
     });
-    console.log(`genTagCloudData documents.search found ${documents.length} items`, documents); */
 
     // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
 
-    for (let p of paths) {
-        if (!p.renderPath.match(/\.html$/)) {
-            // console.log(`Skipping ${p.vpath}`);
-            continue;
-        }
-        let document = await akasha.readDocument(config, p.vpath);
-        document.taglist = documentTags(document);
+    for (let doc of _documents) {
+        let document = await akasha.readDocument(config, doc.vpath);
+        // document.taglist = plugin.documentTags(document);
+        document.taglist = plugin.tagParse(document.docMetadata.tags);
         // console.log(`genTagCloudData ${document.fspath} `, document.taglist);
         if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
             // console.log(util.inspect(document.taglist));
@@ -510,7 +553,7 @@ async function genTagCloudData(config) {
                 if (typeof td === 'undefined' || !td) {
                     td = { 
                         tagName: tagnm,
-                        tagDescription: config.plugin(pluginName).tagDescription(tagnm),
+                        tagDescription: plugin.tagDescription(tagnm),
                         entries: [] 
                     };
                     tagCloudData.tagData.push(td);

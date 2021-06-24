@@ -21,8 +21,6 @@
   "dependencies": {
     "rss": "^1.2.2",
     "tagcloud-generator": "*",
-    "temporary": "*",
-    "fs-extra": "*",
-    "run-parallel-limit": ">=1.x"
+    "fastq": "^1.11.0"
   }
 }
