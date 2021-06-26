@@ -116,11 +116,17 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 
     documentTags(document) {
         // console.log('documentTags '+ util.inspect(document.metadata));
+        let tags;
         if (document.docMetadata && document.docMetadata.tags) {
+            tags = document.docMetadata.tags;
+        } else if (document.metadata && document.metadata.tags) {
+            tags = document.metadata.tags;
+        }
+        if (tags) {
             // parse tags
             // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
             // util.log(entry.frontmatter.tags);
-            var taglist = this.tagParse(document.docMetadata.tags);
+            var taglist = this.tagParse(tags);
             // console.log(`documentTags taglist ${document.relpath} ${document.metadata.tags} ==> ${util.inspect(taglist)}`);
             return taglist;
         } else {
