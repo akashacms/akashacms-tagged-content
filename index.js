@@ -369,7 +369,7 @@ module.exports.generateTagIndexes = async function (config) {
             tagData.entries.sort(sortByTitle);
         }
 
-        let tagFileSorted = new Date();
+        let tagFileSorted = new Date() - tagFileStart;
         // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(new Date() - tagFileStart) / 1000} seconds`);
 
         const text2write = await akasha.partial(config,
@@ -431,9 +431,17 @@ module.exports.generateTagIndexes = async function (config) {
         const finalrender = 
                 await renderer.renderForLayoutNew(fm.data.content, fm.data, config);
 
+        // Make sure the directory is there
+        await fsp.mkdir(path.join(config.renderDestination,
+                                  plugin.options.pathIndexes), {
+            recursive: true, mode: 0o755
+        });
+
         // Write the resulting text to the output directory
         await fsp.writeFile(
-                path.join(config.renderDestination, fm.data.document.renderTo),
+                path.join(config.renderDestination,
+                    plugin.options.pathIndexes,
+                    fm.data.document.renderTo),
                 finalrender);
 
         // Generate RSS feeds for each tag
@@ -458,10 +466,10 @@ module.exports.generateTagIndexes = async function (config) {
         }
 
         const xml = rssFeed.xml();
-        await fsp.writeFile(
-            path.join(config.renderDestination, plugin.options.pathIndexes, tagRSSFileName), 
-            xml,
-            { encoding: 'utf8' });
+        await fsp.writeFile(path.join(config.renderDestination,
+                                      plugin.options.pathIndexes,
+                                      tagRSSFileName), 
+            xml, { encoding: 'utf8' });
 
         // Finish up data collection
 
