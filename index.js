@@ -96,7 +96,11 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
     }
 
     tagPageUrl(config, tagName) {
-        return this.options.pathIndexes + tag2encode4url(tagName) +'.html';
+        if (this.options.pathIndexes.endsWith('/')) {
+            return this.options.pathIndexes + tag2encode4url(tagName) +'.html';
+        } else {
+            return this.options.pathIndexes +'/'+ tag2encode4url(tagName) +'.html';
+        }
     }
 
     tagParse(tags) {
@@ -407,13 +411,15 @@ module.exports.generateTagIndexes = async function (config) {
 
         const renderer = config.findRendererPath(tagFileName);
         const fm = renderer.parseFrontmatter(entryText);
+        const vpath = path.join(plugin.options.pathIndexes,
+                                renderer.filePath(tagFileName));
         // Set up the metadata as per HTMLRenderer.newInitMetadata
         fm.data.document = {
             basedir: '/',
-            relpath: tagFileName,
+            relpath: '/',
             relrender: renderer.filePath(tagFileName),
-            path: tagFileName,
-            renderTo: renderer.filePath(tagFileName)
+            path: path.join(plugin.options.pathIndexes, tagFileName),
+            renderTo: vpath
         };
         fm.data.config = config;
         fm.data.partialSync = akasha.partialSync.bind(renderer, config);
@@ -424,25 +430,36 @@ module.exports.generateTagIndexes = async function (config) {
         fm.data.rendered_date = new Date();
         fm.data.publicationDate = new Date();
         // Initial content render
-        fm.data.content = renderer.render(fm.content, fm.data);
+        fm.data.content = await renderer.render(fm.content, fm.data);
+
+        const writeTo = path.join(config.renderDestination,
+                                  fm.data.document.renderTo);
+
+        // console.log(`renderTagFile ${tagFileName} `, fm);
 
         // Handle the layout field
         // This function also handles Mahabhuta tags
-        const finalrender = 
+        const layoutrender = 
                 await renderer.renderForLayoutNew(fm.data.content, fm.data, config);
 
+        let finalrender;
+        try {
+            finalrender = await renderer.maharun(layoutrender, fm.data, config.mahafuncs);
+        } catch (e2) {
+            let eee = new Error(`Error with Mahabhuta ${vpath} with ${fm.data.layout} ${e2.stack ? e2.stack : e2}`);
+            console.error(eee);
+            throw eee;
+        }
+
+        // console.log(`renderTagFile ${tagFileName} ==> ${writeTo} :- `, finalrender);
+
         // Make sure the directory is there
-        await fsp.mkdir(path.join(config.renderDestination,
-                                  plugin.options.pathIndexes), {
+        await fsp.mkdir(path.dirname(writeTo), {
             recursive: true, mode: 0o755
         });
 
         // Write the resulting text to the output directory
-        await fsp.writeFile(
-                path.join(config.renderDestination,
-                    plugin.options.pathIndexes,
-                    fm.data.document.renderTo),
-                finalrender);
+        await fsp.writeFile(writeTo, finalrender);
 
         // Generate RSS feeds for each tag
 
