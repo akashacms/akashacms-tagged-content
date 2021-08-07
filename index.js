@@ -473,12 +473,16 @@ module.exports.generateTagIndexes = async function (config) {
         for (let tagEntry of tagData.entries) {
             let u = new URL(config.root_url);
             u.pathname = tagEntry.renderPath;
+            let dt = tagEntry.docMetadata.publicationDate;
+            if (!dt) {
+                let stats = await fsp.stat(tagEntry.fspath);
+                dt = stats.mtime;
+            }
             rssFeed.item({
                 title: tagEntry.docMetadata.title,
                 description: tagEntry.docMetadata.teaser ? tagEntry.docMetadata.teaser : "",
                 url: u.toString(),
-                date: tagEntry.docMetadata.publicationDate 
-                    ? tagEntry.docMetadata.publicationDate : tagEntry.stat.mtime
+                date: dt
             });
         }
 
@@ -568,7 +572,8 @@ async function genTagCloudData(config) {
     // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
 
     for (let doc of _documents) {
-        let document = await akasha.readDocument(config, doc.vpath);
+        // let document = await akasha.readDocument(config, doc.vpath);
+        let document = await filecache.documents.find(doc.vpath);
         // document.taglist = plugin.documentTags(document);
         document.taglist = plugin.tagParse(document.docMetadata.tags);
         // console.log(`genTagCloudData ${document.fspath} `, document.taglist);
