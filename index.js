@@ -430,7 +430,7 @@ module.exports.generateTagIndexes = async function (config) {
         fm.data.rendered_date = new Date();
         fm.data.publicationDate = new Date();
         // Initial content render
-        fm.data.content = await renderer.render(fm.content, fm.data);
+        fm.data.content = await renderer.render(fm.content, fm.data, { fspath: vpath });
 
         const writeTo = path.join(config.renderDestination,
                                   fm.data.document.renderTo);
