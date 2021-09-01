@@ -85,6 +85,16 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         return taglist ? taglist.includes(tag) : false;
     }
 
+    docHasTag(document, tag) {
+        let tags;
+        if (document.docMetadata && document.docMetadata.tags) {
+            tags = document.docMetadata.tags;
+        } else if (document.metadata && document.metadata.tags) {
+            tags = document.metadata.tags;
+        }
+        return this.hasTag(tags, tag);
+    }
+
     tagDescription(tagnm) {
         if (!this.options.tags) return "";
         for (let tagitem of this.options.tags) {
@@ -177,6 +187,18 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 
         return tagnames;
     }
+
+    async documentsWithTag(tagName) {
+        const filecache = await akasha.filecache;
+        const coll = filecache.documents.getCollection(filecache.documents.collection);
+        const docs = await this.documentsWithTags();
+        const ret = [];
+        for (let doc of docs) {
+            if (this.docHasTag(doc, tagName)) ret.push(doc);
+        }
+        return ret;
+    }
+
 };
 
 
@@ -209,12 +231,12 @@ module.exports.mahabhutaArray = function(options) {
 class TagCloudElement extends mahabhuta.CustomElement {
     get elementName() { return "tag-cloud"; }
     async process($element, metadata, dirty) {
-        const plugin = config.plugin(pluginName);
+        let thisConfig = this.array.options.config;
+        const plugin = thisConfig.plugin(pluginName);
         // let startTime = new Date();
         let id = $element.attr('id');
         let clazz = $element.attr('class');
         let style = $element.attr('style');
-        let thisConfig = this.array.options.config;
         if (!this.array.options.tagCloudData) {
             this.array.options.tagCloudData = await genTagCloudData(thisConfig);
         }

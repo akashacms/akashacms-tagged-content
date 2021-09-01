@@ -15,6 +15,9 @@
   "engines": {
     "node": ">=12.4"
   },
+  "bin": {
+    "akashacms-tagged-content": "cli.js"
+  },
   "scripts": {
       "dopublish": "npm publish --access public"
   },
