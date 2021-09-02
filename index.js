@@ -35,6 +35,20 @@ const _plugin_config = Symbol('config');
 const _plugin_options = Symbol('options');
 const _plugin_tagsdir = Symbol('tagsDir');
 
+// TODO
+// 
+// Work out mechanism when a document is added to the cache, to automatically
+// parse the tags and store them in the cache as an array to simplify
+// treatment of the tags later
+//
+// Perhaps instead, move interpretation of the tags into the core FileCache class
+//
+// When adding documents, maintain a second index of tag ==> document
+// This is because of an inability in ForerunnerDB to write a query
+// that finds documents where an array in the document contains a value.
+// The $in query does the opposite.
+
+
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
     constructor() { super(pluginName); }
 
