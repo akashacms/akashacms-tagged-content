@@ -35,20 +35,6 @@ const _plugin_config = Symbol('config');
 const _plugin_options = Symbol('options');
 const _plugin_tagsdir = Symbol('tagsDir');
 
-// TODO
-// 
-// Work out mechanism when a document is added to the cache, to automatically
-// parse the tags and store them in the cache as an array to simplify
-// treatment of the tags later
-//
-// Perhaps instead, move interpretation of the tags into the core FileCache class
-//
-// When adding documents, maintain a second index of tag ==> document
-// This is because of an inability in ForerunnerDB to write a query
-// that finds documents where an array in the document contains a value.
-// The $in query does the opposite.
-
-
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
     constructor() { super(pluginName); }
 
@@ -87,12 +73,6 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
         return module.exports.generateTagIndexes(config);
     }
 
-    /* async onSiteRendered(config) {
-        // let ret = await module.exports.generateTagIndexes(config);
-        await this[_plugin_tempdir].rmdir();
-        // return ret;
-    } */
-
     hasTag(tags, tag) {
         var taglist = this.tagParse(tags);
         // console.log(`documentHasTag ${tag} ${util.inspect(taglist)}`);
@@ -100,13 +80,11 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
     }
 
     docHasTag(document, tag) {
-        let tags;
-        if (document.docMetadata && document.docMetadata.tags) {
-            tags = document.docMetadata.tags;
-        } else if (document.metadata && document.metadata.tags) {
+        let tags = [];
+        if (document.metadata && document.metadata.tags) {
             tags = document.metadata.tags;
         }
-        return this.hasTag(tags, tag);
+        return tags.includes(tag);
     }
 
     tagDescription(tagnm) {
@@ -144,92 +122,54 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 
     documentTags(document) {
         // console.log('documentTags '+ util.inspect(document.metadata));
-        let tags;
-        if (document.docMetadata && document.docMetadata.tags) {
-            tags = document.docMetadata.tags;
-        } else if (document.metadata && document.metadata.tags) {
+        let tags = [];
+        if (document.metadata && document.metadata.tags) {
             tags = document.metadata.tags;
         }
-        if (tags) {
-            // parse tags
-            // foreach tag:- tagCloudData[tag] .. if null, give it an array .push(entry)
-            // util.log(entry.frontmatter.tags);
-            var taglist = this.tagParse(tags);
-            // console.log(`documentTags taglist ${document.relpath} ${document.metadata.tags} ==> ${util.inspect(taglist)}`);
-            return taglist;
-        } else {
-            // console.log(`documentTags ${document.relpath} NO taglist`);
-            return undefined;
-        }
+        return tags;
     }
 
     async documentsWithTags() {
         const filecache = await akasha.filecache;
-        const coll = filecache.documents.getCollection(filecache.documents.collection);
-        return coll.find({
-            renderPath: /\.html$/,
-            docMetadata: { tags: { $exists: true } }
-        });
+        return filecache.documents.documentsWithTags();
     }
 
     async allTags() {
-        const _documents = await this.documentsWithTags();
-        let tagnames = [];
-        for (let document of _documents) {
-            document.taglist = this.tagParse(document.docMetadata.tags);
-            for (let tagnm of document.taglist) {
-                let found = false;
-                for (let nm of tagnames) {
-                    if (nm.tagName.toLowerCase() === tagnm.toLowerCase()) {
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) tagnames.push({
-                    tagName: tagnm,
-                    tagDescription: this.tagDescription(tagnm)
-                });
-            }
-        }
-        tagnames = tagnames.sort((a, b) => {
-            var tagA = a.tagName.toLowerCase();
-            var tagB = b.tagName.toLowerCase();
-            if (tagA < tagB) return -1;
-            if (tagA > tagB) return 1;
-            return 0;
-        });
-
-        return tagnames;
-    }
-
-    async documentsWithTag(tagName) {
         const filecache = await akasha.filecache;
-        const coll = filecache.documents.getCollection(filecache.documents.collection);
-        const docs = await this.documentsWithTags();
+        const tagnames = filecache.documents.tags();
         const ret = [];
-        for (let doc of docs) {
-            if (this.docHasTag(doc, tagName)) ret.push(doc);
+        for (let tagnm of tagnames) {
+            ret.push({
+                tagName: tagnm,
+                tagDescription: this.tagDescription(tagnm)
+            });
         }
         return ret;
     }
 
-};
-
-
-async function doTagsForDocument(config, metadata, template) {
-    const plugin = config.plugin(pluginName);
-    var taglist = plugin.documentTags({ metadata: metadata });
-    if (taglist) {
-        // log('doTagsForDocument '+ util.inspect(taglist));
-        return akasha.partial(config, template, {
-            tagz: taglist.map(tag => {
-                return {
-                    tagName: tag,
-                    tagUrl: plugin.tagPageUrl(config, tag)
-                };
-            })
+    async documentsWithTag(tagName) {
+        const filecache = await akasha.filecache;
+        let docs = filecache.documents.search(config, {
+            tag: tagName
         });
-    } else return "";
+        return await this.documentsWithTags();
+    }
+
+    async doTagsForDocument(config, metadata, template) {
+        const plugin = this;
+        const taglist = this.documentTags({ metadata: metadata });
+        if (taglist) {
+            // log('doTagsForDocument '+ util.inspect(taglist));
+            return akasha.partial(config, template, {
+                tagz: taglist.map(tag => {
+                    return {
+                        tagName: tag,
+                        tagUrl: plugin.tagPageUrl(config, tag)
+                    };
+                })
+            });
+        } else return "";
+    }
 };
 
 module.exports.mahabhutaArray = function(options) {
@@ -274,7 +214,9 @@ class TagCloudElement extends mahabhuta.CustomElement {
 class TagsForDocumentElement extends mahabhuta.CustomElement {
     get elementName() { return "tags-for-document"; }
     process($element, metadata, dirty, done) {
-        return doTagsForDocument(this.array.options.config, metadata, "tagged-content-doctags.html.ejs");
+        const plugin = this.array.options.config.plugin(pluginName);
+        return plugin.doTagsForDocument(this.array.options.config,
+                metadata, "tagged-content-doctags.html.ejs");
     }
 }
 
@@ -359,6 +301,7 @@ class TagsListItemElement extends mahabhuta.CustomElement {
  *    underlying URL.
  **/
 var tag2encode4url = function(tagName) {
+    // console.log(`tag2encode4url ${tagName}`);
     return tagName.toLowerCase()
         .replace(/ /g, '-')
         .replace(/\//g, '-')
@@ -368,17 +311,17 @@ var tag2encode4url = function(tagName) {
 }
 
 var sortByTitle = function(a,b) {
-	if (a.docMetadata.title < b.docMetadata.title) return -1;
-	else if (a.docMetadata.title === b.docMetadata.title) return 0;
+	if (a.metadata.title < b.metadata.title) return -1;
+	else if (a.metadata.title === b.metadata.title) return 0;
 	else return 1;
 };
 
 var sortByDate = function(a,b) {
     var aPublicationDate = Date.parse(
-        a.docMetadata.publicationDate ? a.docMetadata.publicationDate : a.stat.mtime
+        a.metadata.publicationDate ? a.metadata.publicationDate : a.stat.mtime
     );
     var bPublicationDate = Date.parse(
-        b.docMetadata.publicationDate ? b.docMetadata.publicationDate : b.stat.mtime
+        b.metadata.publicationDate ? b.metadata.publicationDate : b.stat.mtime
     );
     if (aPublicationDate < bPublicationDate) return -1;
     else if (aPublicationDate === bPublicationDate) return 0;
@@ -391,7 +334,7 @@ module.exports.generateTagIndexes = async function (config) {
     var tagIndexCount = 0;
     var tagCloudData = await genTagCloudData(config);
 
-    // log(util.inspect(tagCloudData));
+    // console.log(util.inspect(tagCloudData));
 
     async function renderTagFile(tagData) {
         const tagFileStart = new Date();
@@ -509,14 +452,14 @@ module.exports.generateTagIndexes = async function (config) {
         for (let tagEntry of tagData.entries) {
             let u = new URL(config.root_url);
             u.pathname = tagEntry.renderPath;
-            let dt = tagEntry.docMetadata.publicationDate;
+            let dt = tagEntry.metadata.publicationDate;
             if (!dt) {
                 let stats = await fsp.stat(tagEntry.fspath);
                 dt = stats.mtime;
             }
             rssFeed.item({
-                title: tagEntry.docMetadata.title,
-                description: tagEntry.docMetadata.teaser ? tagEntry.docMetadata.teaser : "",
+                title: tagEntry.metadata.title,
+                description: tagEntry.metadata.teaser ? tagEntry.metadata.teaser : "",
                 url: u.toString(),
                 date: dt
             });
@@ -598,12 +541,9 @@ async function genTagCloudData(config) {
     };
 
     const filecache = await akasha.filecache;
+    const _documents = filecache.documents.documentsWithTags();
 
-    const coll = filecache.documents.getCollection(filecache.documents.collectio);
-    const _documents = coll.find({
-        renderPath: /\.html$/,
-        docMetadata: { tags: { $exists: true } }
-    });
+    // console.log(`genTagCloudData documents `, _documents);
 
     // console.log(`genTagCloudData documentSearch ${(new Date() - startTime) / 1000} seconds`);
 
@@ -611,11 +551,12 @@ async function genTagCloudData(config) {
         // let document = await akasha.readDocument(config, doc.vpath);
         let document = await filecache.documents.find(doc.vpath);
         // document.taglist = plugin.documentTags(document);
-        document.taglist = plugin.tagParse(document.docMetadata.tags);
-        // console.log(`genTagCloudData ${document.fspath} `, document.taglist);
-        if (typeof document.taglist !== 'undefined' && Array.isArray(document.taglist)) {
+        // document.taglist = document.docMetadata.tags;
+        // console.log(`genTagCloudData ${document.fspath} `, document.metadata.tags);
+        if (typeof document.metadata.tags !== 'undefined'
+         && Array.isArray(document.metadata.tags)) {
             // console.log(util.inspect(document.taglist));
-            for (let tagnm of document.taglist) {
+            for (let tagnm of document.metadata.tags) {
                 let td = undefined;
                 for (var j = 0; j < tagCloudData.tagData.length; j++) {
                     if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
