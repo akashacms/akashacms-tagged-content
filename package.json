@@ -24,6 +24,6 @@
   "dependencies": {
     "rss": "^1.2.2",
     "tagcloud-generator": "*",
-    "fastq": "^1.11.0"
+    "fastq": "^1.13.x"
   }
 }
