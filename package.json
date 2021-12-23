@@ -6,12 +6,27 @@
   },
   "name": "@akashacms/plugins-tagged-content",
   "description": "A plugin for AkashaCMS for tagging content, creating tag clouds, etc",
+  "keywords": [
+    "content management system",
+    "cms",
+    "static site generator",
+    "static file server",
+    "web development",
+    "build and deployment",
+    "renderer",
+    "templating",
+    "templates",
+    "website",
+    "website builder",
+    "blog",
+    "akashacms"
+  ],
   "homepage": "http://akashacms.com/plugins/tagged-content.html",
   "repository": {
     "type": "git",
     "url": "git://github.com/akashacms/akashacms-tagged-content.git"
   },
-  "version": "0.7.4",
+  "version": "0.8.0",
   "engines": {
     "node": ">=12.4"
   },
