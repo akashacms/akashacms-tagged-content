@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "npm-run-all setup:here setup:parent",
     "setup:here": "npm install",
-    "setup:parent": "cd .. && npm install && npm install 'akashacms/akasharender#watcher' 'akashacms/akashacms-base#watcher' 'akashacms/akashacms-theme-bootstrap#watcher' 'bootstrap@4.6.x' 'jquery@3.6.x' 'popper.js@1.16.x' --no-save",
+    "setup:parent": "cd .. && npm install && npm install 'akashacms/akasharender#0.9' 'akashacms/akashacms-base#0.9' 'akashacms/akashacms-theme-bootstrap' 'bootstrap@4.6.x' 'jquery@3.6.x' 'popper.js@1.16.x' --no-save",
     "build": "npm-run-all build:copy build:render",
     "build:copy": "akasharender copy-assets config.js",
     "build:render": "akasharender render config.js",

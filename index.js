@@ -23,6 +23,7 @@ const path     = require('path');
 const util     = require('util');
 const fs       = require('fs');
 const fsp      = require('fs/promises');
+const url      = require('url');
 const RSS      = require('rss');
 const taggen   = require('tagcloud-generator');
 const akasha   = require('akasharender');
@@ -32,7 +33,6 @@ const fastq = require('fastq');
 const pluginName = "@akashacms/plugins-tagged-content";
 
 const _plugin_config = Symbol('config');
-const _plugin_options = Symbol('options');
 const _plugin_tagsdir = Symbol('tagsDir');
 
 module.exports = class TaggedContentPlugin extends akasha.Plugin {
@@ -40,14 +40,13 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
 
     configure(config, options) {
         this[_plugin_config] = config;
-        this[_plugin_options] = options;
+        this.options = options;
         options.config = config;
         config.addPartialsDir(path.join(__dirname, 'partials'));
         config.addMahabhuta(module.exports.mahabhutaArray(options));
     }
 
     get config() { return this[_plugin_config]; }
-    get options() { return this[_plugin_options]; }
 
     sortBy(sort) {
         this.options.sortBy = sort;
@@ -130,12 +129,12 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
     }
 
     async documentsWithTags() {
-        const filecache = await akasha.filecache;
+        const filecache = this.config.akasha.filecache;
         return filecache.documents.documentsWithTags();
     }
 
     async allTags() {
-        const filecache = await akasha.filecache;
+        const filecache = this.config.akasha.filecache;
         const tagnames = filecache.documents.tags();
         const ret = [];
         for (let tagnm of tagnames) {
@@ -148,7 +147,7 @@ module.exports = class TaggedContentPlugin extends akasha.Plugin {
     }
 
     async documentsWithTag(tagName) {
-        const filecache = await akasha.filecache;
+        const filecache = this.config.akasha.filecache;
         let docs = filecache.documents.search(config, {
             tag: tagName
         });
@@ -205,7 +204,7 @@ class TagCloudElement extends mahabhuta.CustomElement {
         }, "");
         // console.log(tagCloud);
         // console.log(`TagCloudElement ${metadata.document.path} generateSimpleCloud ${(new Date() - startTime) / 1000} seconds`);
-        return akasha.partial(thisConfig, "tagged-content-cloud.html.ejs", {
+        return this.array.options.config.akasha.partial(thisConfig, "tagged-content-cloud.html.ejs", {
             tagCloud, id, clazz, style
         });
     }
@@ -242,7 +241,7 @@ class TagsFeedsListElement extends mahabhuta.CustomElement {
         // console.log(`TagsFeedsListElement `, this.array.options);
         // console.log(`TagsFeedsListElement `, tagCloudData);
 
-        const ret = await akasha.partial(this.array.options.config, template, {
+        const ret = await this.array.options.config.akasha.partial(this.array.options.config, template, {
             id, additionalClasses, tag2encode4url,
             pathIndexes: this.array.options.pathIndexes,
             entries: tagnames
@@ -266,7 +265,7 @@ class TagsListContainerElement extends mahabhuta.CustomElement {
         const content = $element.html()
                 ? $element.html()
                 : "";
-        return akasha.partial(this.array.options.config, template, {
+        return this.array.options.config.akasha.partial(this.array.options.config, template, {
             id, additionalClasses, content
         });
     }
@@ -287,7 +286,7 @@ class TagsListItemElement extends mahabhuta.CustomElement {
         const description = $element.html()
                 ? $element.html()
                 : "";
-        return akasha.partial(this.array.options.config, template, {
+        return this.array.options.config.akasha.partial(this.array.options.config, template, {
             id, additionalClasses, description, name, href
         });
     }
@@ -342,6 +341,8 @@ module.exports.generateTagIndexes = async function (config) {
         const tagNameEncoded = tag2encode4url(tagData.tagName);
         const tagFileName = tagNameEncoded +".html.ejs";
         const tagRSSFileName = tagNameEncoded +".xml";
+        const tagFilePath = path.join(plugin.options.pathIndexes, tagFileName);
+        const tagRSSFilePath = path.join(plugin.options.pathIndexes, tagRSSFileName);
 
         if (plugin.options.sortBy === 'date') {
             tagData.entries.sort(sortByDate);
@@ -355,7 +356,7 @@ module.exports.generateTagIndexes = async function (config) {
         let tagFileSorted = new Date() - tagFileStart;
         // console.log(`tagged-content SORTED INDEX for ${tagData.tagName} with ${tagData.entries.length} entries in ${(new Date() - tagFileStart) / 1000} seconds`);
 
-        const text2write = await akasha.partial(config,
+        const text2write = await plugin.config.akasha.partial(config,
                 "tagged-content-tagpagelist.html.ejs",
                 { entries: tagData.entries });
 
@@ -389,43 +390,117 @@ module.exports.generateTagIndexes = async function (config) {
          */
 
         const renderer = config.findRendererPath(tagFileName);
-        const fm = renderer.parseFrontmatter(entryText);
+        const rc = renderer.parseMetadata({
+            fspath: tagFilePath,
+            content: entryText
+        });
         const vpath = path.join(plugin.options.pathIndexes,
                                 renderer.filePath(tagFileName));
         // Set up the metadata as per HTMLRenderer.newInitMetadata
-        fm.data.document = {
+        rc.metadata.document = {
             basedir: '/',
             relpath: '/',
             relrender: renderer.filePath(tagFileName),
             path: path.join(plugin.options.pathIndexes, tagFileName),
             renderTo: vpath
         };
-        fm.data.config = config;
-        fm.data.partialSync = akasha.partialSync.bind(renderer, config);
-        fm.data.partial     = akasha.partial.bind(renderer, config);
-        fm.data.root_url = config.root_url;
-        fm.data.akasha = akasha;
-        fm.data.plugin = config.plugin;
-        fm.data.rendered_date = new Date();
-        fm.data.publicationDate = new Date();
+        rc.metadata.config = config;
+        rc.metadata.partialSync = (fname, metadata) => {
+            // console.log(`partialSync ${fname}`);
+            return config.akasha.partialSync(config, fname, metadata); // .bind(renderer, config);
+        };
+        rc.metadata.partial     = async (fname, metadata) => {
+            // console.log(`partial ${fname}`);
+            return config.akasha.partial(config, fname, metadata); // .bind(renderer, config);
+        };
+        rc.metadata.root_url = config.root_url;
+        rc.metadata.akasha = akasha;
+        rc.metadata.plugin = config.plugin;
+        rc.metadata.rendered_date = new Date();
+        rc.metadata.publicationDate = new Date();
+
+        if (config.root_url) {
+            let pRootUrl = url.parse(config.root_url);
+            pRootUrl.pathname = path.normalize(
+                    path.join(pRootUrl.pathname, rc.metadata.document.renderTo)
+            );
+            rc.metadata.rendered_url = url.format(pRootUrl);
+        }
         // Initial content render
-        fm.data.content = await renderer.render(fm.content, fm.data, { fspath: vpath });
+
+        // console.log(`renderTagFile ${tagNameEncoded}`, rc);
+        const rendered = await renderer.render(rc);
 
         const writeTo = path.join(config.renderDestination,
-                                  fm.data.document.renderTo);
+                                  rc.metadata.document.renderTo);
 
         // console.log(`renderTagFile ${tagFileName} `, fm);
 
         // Handle the layout field
         // This function also handles Mahabhuta tags
-        const layoutrender = 
-                await renderer.renderForLayoutNew(fm.data.content, fm.data, config);
+
+        let layoutrendered;
+        if (rc.metadata.layout) {
+
+            const layouts = config.akasha.filecache.layouts;
+            await layouts.isReady();
+
+            let found = await layouts.find(rc.metadata.layout);
+            if (!found) {
+                throw new Error(`No layout found in ${util.inspect(config.layoutDirs)} for ${rc.metadata.layout} in file ${rc.fspath}`);
+            }
+
+            let layoutmetadata = {};
+            for (var yprop in rc.metadata) {
+                if (yprop !== 'layout') {
+                    layoutmetadata[yprop] = rc.metadata[yprop];
+                }
+            }
+            layoutmetadata.content = rendered;
+
+            const renderer = config.findRendererPath(rc.metadata.layout);
+
+            if (!renderer) {
+                throw new Error(`No renderer for ${rc.metadata.layout} in file ${rc.fspath}`);;
+            }
+
+            try {
+                layoutrendered = await renderer.render({
+                    fspath: found.fspath,
+                    content: found.docContent,
+                    body: found.docBody,
+                    metadata: layoutmetadata
+                });
+            } catch (e) {
+                let ee = new Error(`Error rendering ${rc.fspath} with ${rc.metadata.layout} ${e.stack ? e.stack : e}`);
+                console.error(ee);
+                throw ee;
+            }
+
+        } else {
+            layoutrendered = rendered;
+        }
 
         let finalrender;
         try {
-            finalrender = await renderer.maharun(layoutrender, fm.data, config.mahafuncs);
+
+            const mahametadata = {};
+            for (var yprop in rc.metadata) {
+                mahametadata[yprop] = rc.metadata[yprop];
+            }
+            mahametadata.content = layoutrendered;
+
+            if (rc.metadata.config.mahabhutaConfig) {
+                mahabhuta.config(rc.metadata.config.mahabhutaConfig);
+            }
+            // console.log(`mahametadata`, mahametadata);
+            finalrender = await mahabhuta.processAsync(
+                layoutrendered, mahametadata, config.mahafuncs
+            );
+
+            // OLD docrendered = await this.maharun(layoutrendered, docdata, config.mahafuncs);
         } catch (e2) {
-            let eee = new Error(`Error with Mahabhuta ${vpath} with ${fm.data.layout} ${e2.stack ? e2.stack : e2}`);
+            let eee = new Error(`Error with Mahabhuta ${docInfo.vpath} with ${docInfo.metadata.layout} ${e2.stack ? e2.stack : e2}`);
             console.error(eee);
             throw eee;
         }
@@ -540,7 +615,7 @@ async function genTagCloudData(config) {
         tagData: []
     };
 
-    const filecache = await akasha.filecache;
+    const filecache = config.akasha.filecache;
     const _documents = filecache.documents.documentsWithTags();
 
     // console.log(`genTagCloudData documents `, _documents);
