@@ -301,6 +301,9 @@ class TagsListItemElement extends mahabhuta.CustomElement {
  **/
 var tag2encode4url = function(tagName) {
     // console.log(`tag2encode4url ${tagName}`);
+    if (!tagName) {
+        throw new Error(`Bad tag name ${util.inspect(tagName)}`);
+    }
     return tagName.toLowerCase()
         .replace(/ /g, '-')
         .replace(/\//g, '-')
@@ -632,6 +635,9 @@ async function genTagCloudData(config) {
          && Array.isArray(document.metadata.tags)) {
             // console.log(util.inspect(document.taglist));
             for (let tagnm of document.metadata.tags) {
+                if (!tagnm) {
+                    throw new Error(`Bad tag name ${util.inspect(tagnm)} in document ${util.inspect(document.metadata)}`);
+                }
                 let td = undefined;
                 for (var j = 0; j < tagCloudData.tagData.length; j++) {
                     if (tagCloudData.tagData[j].tagName.toLowerCase() === tagnm.toLowerCase()) {
@@ -665,6 +671,9 @@ async function genTagCloudData(config) {
 
     tagCloudData = {
         tagData: tagCloudData.tagData.sort((a,b) => {
+            if (!a.tagName || !b.tagName) {
+                throw new Error(`Bad tag name ${util.inspect(a.tagName)} or ${util.inspect(b.tagName)}`);
+            }
             var tagA = a.tagName.toLowerCase();
             var tagB = b.tagName.toLowerCase();
             if (tagA < tagB) return -1;
