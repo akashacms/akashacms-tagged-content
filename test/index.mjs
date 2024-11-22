@@ -1,8 +1,8 @@
 
-const akasha   = require('akasharender');
-const { assert } = require('chai');
+import akasha from 'akasharender';
+import { assert } from 'chai';
 
-const config = require('./config.js');
+import config from './config.mjs';
 
 describe('build site', function() {
 
@@ -29,10 +29,6 @@ describe('build site', function() {
         assert.isFalse(failed);
     });
 
-    it('should close the configuration', async function() {
-        this.timeout(75000);
-        await akasha.closeCaches();
-    });
 });
 
 describe('check pages', function() {
@@ -117,6 +113,8 @@ describe('check tags', function() {
 
         let { html, $ } = await akasha.readRenderedFile(config, 
             '/tags/external.html');
+
+        // console.log(html);
 
         assert.exists(html, 'result exists');
         assert.isString(html, 'result isString');
@@ -219,4 +217,11 @@ describe('check tags', function() {
                             "RSSFeeds");
     });
 
+});
+
+describe('close', function() {
+    it('should close the configuration', async function() {
+        this.timeout(75000);
+        await akasha.closeCaches();
+    });
 });

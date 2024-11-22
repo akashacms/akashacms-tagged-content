@@ -28,17 +28,21 @@
   },
   "version": "0.8.0",
   "engines": {
-    "node": ">=12.4"
+    "node": ">=20.4"
   },
+  "main": "index.mjs",
+  "type": "module",
   "bin": {
-    "akashacms-tagged-content": "cli.js"
+    "akashacms-tagged-content": "cli.mjs"
   },
   "scripts": {
-      "dopublish": "npm publish --access public"
+    "dopublish": "npm publish --access public"
   },
   "dependencies": {
+    "@akashacms/renderers": "^0.9.8",
+    "akasharender": "file:../akasharender",
+    "fastq": "^1.13.x",
     "rss": "^1.2.2",
-    "tagcloud-generator": "*",
-    "fastq": "^1.13.x"
+    "tagcloud-generator": "*"
   }
 }

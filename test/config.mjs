@@ -1,14 +1,17 @@
 
-'use strict';
+import akasha from 'akasharender';
+import path from 'node:path';
+import util from 'node:util';
 
-const akasha  = require('akasharender');
-const path    = require('path');
-const util    = require('util');
+import { ThemeBootstrapPlugin } from '@akashacms/theme-bootstrap';
+import { BasePlugin } from '@akashacms/plugins-base';
+import { TaggedContentPlugin } from '../index.mjs';
 
 const config = new akasha.Configuration();
 
 config.rootURL("https://akashacms-tagged-content.akashacms.com");
 
+const __dirname = import.meta.dirname;
 config.configDir = __dirname;
 
 config
@@ -17,15 +20,15 @@ config
     // packages in the local node_modules directory.  But,
     // they were installed in the parent node_modules directory.
     .addAssetsDir({
-        src: '../node_modules/bootstrap/dist',
+        src: 'node_modules/bootstrap/dist',
         dest: 'vendor/bootstrap'
     })
    .addAssetsDir({
-        src: '../node_modules/jquery/dist',
+        src: 'node_modules/jquery/dist',
         dest: 'vendor/jquery'
     })
     .addAssetsDir({
-        src: '../node_modules/popper.js/dist',
+        src: 'node_modules/popper.js/dist',
         dest: 'vendor/popper.js'
     })
     .addLayoutsDir('layouts')
@@ -33,14 +36,14 @@ config
     .addPartialsDir('partials');
 
 config
-    .use(require('@akashacms/theme-bootstrap'))
-    .use(require('@akashacms/plugins-base'), {
+    .use(ThemeBootstrapPlugin)
+    .use(BasePlugin, {
         generateSitemapFlag: true
     })
-    .use(require('../index.js' /* '@akashacms/plugins-tagged-content' */), {
+    .use(TaggedContentPlugin, {
         sortBy: 'title',
         // @tagDescription@ can only appear once
-        headerTemplate: "---\ntitle: |\n    @title@\nlayout: tagpage.html.ejs\n---\n<p><a href='./index.html'>Tag Index</a></p><p>Pages with tag @tagName@</p><p>@tagDescription@</p>",
+        headerTemplate: "---\ntitle: |\n    @title@\nlayout: tagpage.html.ejs\n---\n<p><a href='./index.html'>Tag Index</a></p><p>Pages with tag @tagName@</p><p>@tagDescription@</p><p>What more can we say?",
         indexTemplate: "---\ntitle: Tags for AkashaCMS Example site\nlayout: tagpage.html.ejs\n---\n",
         pathIndexes: '/tags/',
         tags: [
@@ -73,4 +76,5 @@ config.setMahabhutaConfig({
 });
 
 config.prepare();
-module.exports = config;
+export default config;
+
