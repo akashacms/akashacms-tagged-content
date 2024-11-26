@@ -253,8 +253,8 @@ var tag2encode4url = function(tagName) {
 }
 
 var sortByTitle = function(a,b) {
-	if (a.metadata.title < b.metadata.title) return -1;
-	else if (a.metadata.title === b.metadata.title) return 0;
+	if (a.title < b.title) return -1;
+	else if (a.title === b.title) return 0;
 	else return 1;
 };
 
@@ -554,11 +554,12 @@ export async function generateTagIndexes(config) {
 
     const tagsList = await generateTagsList(config);
 
+    // console.log(`generateTagIndexes taglist `, tagsList);
     for (const tagData of tagsList) {
         await renderTagFile(tagData);
     }
 
-    console.log(`tagged-content FINISH tag indexing for ${tagIndexCount} indexes in ${(new Date() - tagIndexStart) / 1000} seconds`);
+    // console.log(`tagged-content FINISH tag indexing for ${tagIndexCount} indexes in ${(new Date() - tagIndexStart) / 1000} seconds`);
 }
 
 
