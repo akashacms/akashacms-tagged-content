@@ -1,6 +1,6 @@
 /**
  *
- * Copyright 2013-2017 David Herron
+ * Copyright 2013-2025 David Herron
  *
  * This file is part of AkashaCMS-tagged-content (http://akashacms.com/).
  *
@@ -26,7 +26,11 @@ import RSS from 'rss';
 //     RenderingContext
 // } from '@akashacms/renderers';
 import akasha, {
-    renderContent
+    renderContent,
+    Configuration,
+    CustomElement,
+    Munger,
+    PageProcessor
 } from 'akasharender';
 const mahabhuta = akasha.mahabhuta;
 import fastq from 'fastq';
@@ -44,10 +48,12 @@ export class TaggedContentPlugin extends akasha.Plugin {
 
     configure(config, options) {
         this.#config = config;
-        this.options = options;
-        options.config = config;
+        // this.config = config;
+        this.akasha = config.akasha;
+        this.options = options ? options : {};
+        this.options.config = config;
         config.addPartialsDir(path.join(__dirname, 'partials'));
-        config.addMahabhuta(mahabhutaArray(options));
+        config.addMahabhuta(mahabhutaArray(options, config, this.akasha, this));
     }
 
     get config() { return this.#config; }
@@ -122,29 +128,34 @@ export class TaggedContentPlugin extends akasha.Plugin {
     }
 };
 
-export function mahabhutaArray(options) {
+export function mahabhutaArray(
+    options,
+    config, // ?: Configuration,
+    akasha, // ?: any,
+    plugin  // ?: Plugin
+) {
     let ret = new mahabhuta.MahafuncArray(pluginName, options);
-    ret.addMahafunc(new TagsForDocumentElement());
-    ret.addMahafunc(new TagsFeedsListElement());
+    ret.addMahafunc(new TagsForDocumentElement(config, akasha, plugin));
+    ret.addMahafunc(new TagsFeedsListElement(config, akasha, plugin));
     // REMOVED DUE TO DISUSE
     // ret.addMahafunc(new TagsListItemElement());
     // ret.addMahafunc(new TagsListContainerElement());
     return ret;
 };
 
-class TagsForDocumentElement extends mahabhuta.CustomElement {
+class TagsForDocumentElement extends CustomElement {
     get elementName() { return "tags-for-document"; }
     process($element, metadata, dirty, done) {
-        const plugin = this.array.options.config.plugin(pluginName);
-        return plugin.doTagsForDocument(this.array.options.config,
+        const plugin = this.config.plugin(pluginName);
+        return plugin.doTagsForDocument(this.config,
                 metadata, "tagged-content-doctags.html.njk");
     }
 }
 
-class TagsFeedsListElement extends mahabhuta.CustomElement {
+class TagsFeedsListElement extends CustomElement {
     get elementName() { return "tags-feeds-list"; }
     async process($element, metadata, dirty, done) {
-        const plugin = this.array.options.config.plugin(pluginName);
+        const plugin = this.config.plugin(pluginName);
         // const start = new Date();
         const template = $element.attr('template') 
                 ? $element.attr('template')
@@ -155,7 +166,7 @@ class TagsFeedsListElement extends mahabhuta.CustomElement {
                 : "";
 
         // Receives an array of just the tag names.
-        let tagnames = await akasha.filecache
+        let tagnames = await this.akasha.filecache
                 .documentsCache.tags();
 
         // console.log(`TagsFeedsListElement tags ${util.inspect(tagnames)}`);
@@ -176,7 +187,7 @@ class TagsFeedsListElement extends mahabhuta.CustomElement {
 
         // console.log(`TagsFeedsListElement tagEntries ${util.inspect(tagEntries)}`);
 
-        const ret = await this.array.options.config.akasha.partial(this.array.options.config, template, {
+        const ret = await this.akasha.partial(this.config, template, {
             id, additionalClasses, tag2encode4url,
             pathIndexes: this.array.options.pathIndexes,
             entries: tagEntries
@@ -420,12 +431,13 @@ export async function generateTagIndexes(config) {
         };
         rc.metadata.root_url = config.root_url;
         if (config.root_url) {
-            let pRootUrl = url.parse(config.root_url);
-            pRootUrl.pathname = path.normalize(
-                        path.join(pRootUrl.pathname,
+            let uRootUrl = new URL(config.root_url);
+            // let pRootUrl = url.parse(config.root_url);
+            uRootUrl.pathname = path.normalize(
+                        path.join(uRootUrl.pathname,
                         rc.metadata.document.renderTo)
             );
-            rc.metadata.rendered_url = url.format(pRootUrl);
+            rc.metadata.rendered_url = uRootUrl.toString(); // url.format(pRootUrl);
         }
 
         let docFormat;      // Knowing the format 
