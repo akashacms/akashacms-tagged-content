@@ -1,0 +1,7 @@
+<span class="taglist">
+    {%- for tagData in tagz %}
+        <a style="padding: 5px;" class="taglink-header p-category" href="{{ tagData.tagUrl }}">
+            {{- tagData.tagName -}}
+        </a> &raquo;&raquo;&raquo;&raquo;
+    {% endfor -%}
+</span>

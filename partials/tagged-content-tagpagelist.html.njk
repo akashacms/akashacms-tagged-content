@@ -1,0 +1,12 @@
+
+{% for entry in entries -%}
+<p>
+    <strong>
+    <a href="/{{ entry.renderPath }}">
+            {{- entry.title -}}
+    </a></strong> 
+        {%- if entry.teaser -%}
+            : {{ entry.teaser }}
+        {%- endif -%}
+</p>
+{%- endfor %}

@@ -26,19 +26,22 @@
     "type": "git",
     "url": "git://github.com/akashacms/akashacms-tagged-content.git"
   },
-  "version": "0.8.0",
+  "version": "0.9.0",
   "engines": {
-    "node": ">=12.4"
+    "node": ">=24.x"
   },
+  "main": "index.mjs",
+  "type": "module",
   "bin": {
-    "akashacms-tagged-content": "cli.js"
+    "akashacms-tagged-content": "cli.mjs"
   },
   "scripts": {
-      "dopublish": "npm publish --access public"
+    "dopublish": "npm publish --access public"
   },
   "dependencies": {
-    "rss": "^1.2.2",
-    "tagcloud-generator": "*",
-    "fastq": "^1.13.x"
+    "@akashacms/renderers": "^0.9.8",
+    "akasharender": "^0.9.x",
+    "fastq": "^1.13.x",
+    "rss": "^1.2.2"
   }
 }

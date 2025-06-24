@@ -1,0 +1,15 @@
+<div {% if id %}id="{{ id }}" {% endif %} {% if additionalClasses %}class="{{ additionalClasses }}" {% endif %}>
+<ul>
+    {%- for tagEntry in entries %}
+    <li><a rel="alternate"
+            type="application/rss+xml"
+            href="{{ tagEntry.rssHREF }}">
+            {{- tagEntry.tagName -}}
+        </a>
+        {%- if tagEntry.teaser -%}
+        : {{ tagEntry.teaser }}
+        {%- endif -%}
+    </li>
+    {%- endfor %}
+</ul>
+</div>

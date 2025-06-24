@@ -1,0 +1,8 @@
+<div  {% if id %}id="{{ id }}" {% endif %} class="tagged-content-tag-list-item {{ additionalClasses }}" >
+    <strong>
+        <a href="{{ href }}">{{ name }}</a>
+    </strong>
+    {%- if description && description != '' -%}
+    : {{ description }}
+    {%- endif %}
+</div>
