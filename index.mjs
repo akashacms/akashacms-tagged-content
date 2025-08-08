@@ -90,15 +90,19 @@ export class TaggedContentPlugin extends akasha.Plugin {
         return tags.includes(tag);
     }
 
-    tagDescription(tagnm) {
-        if (!this.options.tags) return "";
-        for (let tagitem of this.options.tags) {
-            if (tagitem.name === tagnm) {
-                return tagitem.description;
-            }
-        }
-        return "";
+    async asyncTagDescription(tagnm) {
+        return akasha.filecache.documentsCache.getTagDescription(tagnm);
     }
+
+    // tagDescription(tagnm) {
+    //     if (!this.options.tags) return "";
+    //     for (let tagitem of this.options.tags) {
+    //         if (tagitem.name === tagnm) {
+    //             return tagitem.description;
+    //         }
+    //     }
+    //     return "";
+    // }
 
     tagPageUrl(config, tagName) {
         if (this.options.pathIndexes.endsWith('/')) {
@@ -177,7 +181,7 @@ class TagsFeedsListElement extends CustomElement {
             const tagNameEncoded = tag2encode4url(tagnm);
             tagEntries.push({
                 tagName: tagnm,
-                teaser: plugin.tagDescription(tagnm),
+                teaser: await plugin.asyncTagDescription(tagnm),
                 rssHREF: path.join(
                     this.array.options.pathIndexes,
                     `${tagNameEncoded}.xml`
@@ -354,10 +358,12 @@ async function generateTagsList(config)
                 tagRSSFileName),
             tagnm: tagnm,
             tagnmEncoded: tagNameEncoded,
-            description: plugin.tagDescription(tagnm),
+            description: await plugin.asyncTagDescription(tagnm),
             entries: entries
         });
     }
+
+    // console.log(taglist);
 
     return taglist;
 }
@@ -398,13 +404,67 @@ export async function generateTagIndexes(config) {
                     "tagged-content-tagpagelist.html.njk",
                     { entries: tagData.entries });
 
+        // console.log(`rendering headerTemplate with data ${util.inspect(tagData)}`);
+
         // This is the file to render.  The variable
         // text2write contains the rendered
         // list of links for this tag.
+        //
+        // An example for tagData is:
+        // {
+        // vpath: '/tags/embed.html.ejs',
+        // renderdPathRSS: '/tags/embed.xml',
+        // tagnm: 'Embed',
+        // tagnmEncoded: 'embed',
+        // description: 'Testing embeddeble thingies',
+        // entries: [
+        //     {
+        //     vpath: 'facebook-embed.html.md',
+        //     renderPath: 'facebook-embed.html',
+        //     title: 'Test of embedding Facebook',
+        //     teaser: undefined
+        //     },
+        //     {
+        //     vpath: 'slideshare.html.md',
+        //     renderPath: 'slideshare.html',
+        //     title: 'Test of embedding Slideshare',
+        //     teaser: undefined
+        //     },
+        //     {
+        //     vpath: 'twitter-embed.html.md',
+        //     renderPath: 'twitter-embed.html',
+        //     title: 'Test of embedding tweets',
+        //     teaser: undefined
+        //     },
+        //     {
+        //     vpath: 'video.html.md',
+        //     renderPath: 'video.html',
+        //     title: 'Test of embedding video',
+        //     teaser: undefined
+        //     }
+        // ]
+        // }
+        //
+        // The headerTemplate token @tagDescription@ used to be
+        // based on the tagDescription field here.  But it appears
+        // that it was rewritten at some point to use description,
+        // instead.  But, in the interest of safety, this will recognize
+        // either data field.
+
+        let desc;
+        if (typeof tagData.tagDescription === 'string') {
+            desc = tagData.tagDescription;
+        } else if (typeof tagData.description === 'string') {
+            desc = tagData.description;
+        } else {
+            // Rather than output "undefined" into the rendering,
+            // give it an empty string.
+            desc = '';
+        }
         let entryText = plugin.options.headerTemplate
             .replace("@title@", tagData.tagnm)
             .replace("@tagName@", tagData.tagnm)
-            .replace("@tagDescription@", tagData.tagDescription);
+            .replace("@tagDescription@", desc);
         entryText += text2write;
 
         // Render the main content
