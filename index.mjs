@@ -82,26 +82,15 @@ export class TaggedContentPlugin extends akasha.Plugin {
         return generateTagIndexes(config);
     }
 
-    docHasTag(document, tag) {
-        let tags = [];
-        if (document.metadata && document.metadata.tags) {
-            tags = document.metadata.tags;
-        }
-        return tags.includes(tag);
-    }
-
-    async asyncTagDescription(tagnm) {
-        return akasha.filecache.documentsCache.getTagDescription(tagnm);
-    }
-
-    // tagDescription(tagnm) {
-    //     if (!this.options.tags) return "";
-    //     for (let tagitem of this.options.tags) {
-    //         if (tagitem.name === tagnm) {
-    //             return tagitem.description;
-    //         }
+    // What was this created to do?
+    // Is this used anywhere?
+    //
+    // docHasTag(document, tag) {
+    //     let tags = [];
+    //     if (document.metadata && document.metadata.tags) {
+    //         tags = document.metadata.tags;
     //     }
-    //     return "";
+    //     return tags.includes(tag);
     // }
 
     tagPageUrl(config, tagName) {
@@ -149,9 +138,9 @@ export function mahabhutaArray(
 
 class TagsForDocumentElement extends CustomElement {
     get elementName() { return "tags-for-document"; }
-    process($element, metadata, dirty, done) {
+    async process($element, metadata, dirty, done) {
         const plugin = this.config.plugin(pluginName);
-        return plugin.doTagsForDocument(this.config,
+        return await plugin.doTagsForDocument(this.config,
                 metadata, "tagged-content-doctags.html.njk");
     }
 }
@@ -181,7 +170,8 @@ class TagsFeedsListElement extends CustomElement {
             const tagNameEncoded = tag2encode4url(tagnm);
             tagEntries.push({
                 tagName: tagnm,
-                teaser: await plugin.asyncTagDescription(tagnm),
+                teaser: await this.akasha.filecache
+                            .documentsCache.getTagDescription(tagnm),
                 rssHREF: path.join(
                     this.array.options.pathIndexes,
                     `${tagNameEncoded}.xml`
@@ -358,7 +348,7 @@ async function generateTagsList(config)
                 tagRSSFileName),
             tagnm: tagnm,
             tagnmEncoded: tagNameEncoded,
-            description: await plugin.asyncTagDescription(tagnm),
+            description: await akasha.filecache.documentsCache.getTagDescription(tagnm),
             entries: entries
         });
     }
