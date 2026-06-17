@@ -41,7 +41,6 @@
   "dependencies": {
     "@akashacms/renderers": "^0.9.8",
     "akasharender": "^0.9.x",
-    "fastq": "^1.13.x",
     "rss": "^1.2.2"
   }
 }
