@@ -40,7 +40,7 @@
   },
   "dependencies": {
     "@akashacms/renderers": "^0.9.8",
-    "akasharender": "^0.9.x",
+    "akasharender": "akashacms/akasharender#0.10",
     "rss": "^1.2.2"
   }
 }
