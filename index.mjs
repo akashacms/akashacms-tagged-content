@@ -33,7 +33,6 @@ import akasha, {
     PageProcessor
 } from 'akasharender';
 const mahabhuta = akasha.mahabhuta;
-import fastq from 'fastq';
 
 const pluginName = "@akashacms/plugins-tagged-content";
 
