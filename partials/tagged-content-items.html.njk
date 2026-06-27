@@ -1,0 +1,10 @@
+<div class="h-feed tagged-content-items" data-tag="{{ tagName }}">
+{%- for entry in entries %}
+    <article class="h-entry tagged-content-item">
+        <a class="p-name u-url" href="/{{ entry.renderPath }}">{{ entry.title }}</a>
+        {%- if entry.teaser %}
+        <span class="p-summary">: {{ entry.teaser }}</span>
+        {%- endif %}
+    </article>
+{%- endfor %}
+</div>

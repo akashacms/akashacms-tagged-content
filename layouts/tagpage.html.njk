@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>{{ title }}</title>
+
+{# Open Graph metadata for the tag index page (Task 2 conventions). #}
+{# A tag index page is a listing page, so use basic OG properties to #}
+{# carry the tag name and description. #}
+<meta property="og:type" content="website" />
+<meta property="og:title" content="{{ title }}" />
+{%- if tagDescription %}
+<meta property="og:description" content="{{ tagDescription }}" />
+{%- endif %}
+{%- if rendered_url %}
+<meta property="og:url" content="{{ rendered_url }}" />
+{%- endif %}
+</head>
+<body>
+<main>
+<article class="tagged-content-tagpage">
+{{ content | safe }}
+</article>
+</main>
+</body>
+</html>

@@ -5,7 +5,7 @@
     "url": "http://davidherron.com"
   },
   "name": "@akashacms/plugins-tagged-content",
-  "description": "A plugin for AkashaCMS for tagging content, creating tag clouds, etc",
+  "description": "A plugin for AkashaCMS for tagging content",
   "keywords": [
     "content management system",
     "cms",
@@ -26,7 +26,7 @@
     "type": "git",
     "url": "git://github.com/akashacms/akashacms-tagged-content.git"
   },
-  "version": "0.10.0",
+  "version": "0.10.1",
   "engines": {
     "node": ">=24.x"
   },
@@ -39,8 +39,9 @@
     "dopublish": "npm publish --access public"
   },
   "dependencies": {
-    "@akashacms/renderers": "^0.9.8",
-    "akasharender": "akashacms/akasharender#0.10",
     "rss": "^1.2.2"
+  },
+  "peerDependencies": {
+    "akasharender": ">=0.10.0 <0.11"
   }
 }

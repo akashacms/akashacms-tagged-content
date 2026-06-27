@@ -2,8 +2,8 @@
 import akasha from 'akasharender';
 import path from 'node:path';
 import util from 'node:util';
+import { createRequire } from 'node:module';
 
-import { ThemeBootstrapPlugin } from '@akashacms/theme-bootstrap';
 import { BasePlugin } from '@akashacms/plugins-base';
 import { TaggedContentPlugin } from '../index.mjs';
 
@@ -14,21 +14,27 @@ config.rootURL("https://akashacms-tagged-content.akashacms.com");
 const __dirname = import.meta.dirname;
 config.configDir = __dirname;
 
+// Resolve the `dist` directory of a vendor package by its package.json,
+// rather than hardcoding `node_modules/<pkg>/dist`. Under the development
+// workspace these packages are hoisted to the workspace-root node_modules,
+// so a test-relative path does not exist. Module resolution finds them
+// wherever npm placed them.
+const require = createRequire(import.meta.url);
+const vendorDist = (pkg) =>
+    path.join(path.dirname(require.resolve(`${pkg}/package.json`)), 'dist');
+
 config
     .addAssetsDir('assets')
-    // For these three we would normally reference the 
-    // packages in the local node_modules directory.  But,
-    // they were installed in the parent node_modules directory.
     .addAssetsDir({
-        src: 'node_modules/bootstrap/dist',
+        src: vendorDist('bootstrap'),
         dest: 'vendor/bootstrap'
     })
    .addAssetsDir({
-        src: 'node_modules/jquery/dist',
+        src: vendorDist('jquery'),
         dest: 'vendor/jquery'
     })
     .addAssetsDir({
-        src: 'node_modules/popper.js/dist',
+        src: vendorDist('popper.js'),
         dest: 'vendor/popper.js'
     })
     .addLayoutsDir('layouts')
@@ -36,7 +42,11 @@ config
     .addPartialsDir('partials');
 
 config
-    .use(ThemeBootstrapPlugin)
+    // ThemeBootstrapPlugin is intentionally NOT used here: this is the test
+    // suite for @akashacms/plugins-tagged-content, so it must exercise this
+    // plugin's own partials/layout/markup rather than theme-bootstrap's
+    // overrides (e.g. theme-bootstrap ships a tagged-content-tagpagelist
+    // partial that would replace this plugin's microformat output).
     .use(BasePlugin, {
         generateSitemapFlag: true
     })

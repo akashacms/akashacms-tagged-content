@@ -1,12 +1,20 @@
 
+<div class="h-feed tagged-content-tag-list">
 {% for entry in entries -%}
-<p>
-    <strong>
-    <a href="/{{ entry.renderPath }}">
-            {{- entry.title -}}
-    </a></strong> 
-        {%- if entry.teaser -%}
-            : {{ entry.teaser }}
-        {%- endif -%}
-</p>
+    <article class="h-entry tagged-content-tag-entry">
+        <strong>
+            <a class="p-name u-url" href="/{{ entry.renderPath }}">
+                {{- entry.title -}}
+            </a>
+        </strong>
+        {%- if entry.teaser %}
+        <span class="p-summary">: {{ entry.teaser }}</span>
+        {%- endif %}
+        {%- if entry.publishedISO %}
+        <time class="dt-published" datetime="{{ entry.publishedISO }}">
+            {{- entry.published if entry.published else entry.publishedISO -}}
+        </time>
+        {%- endif %}
+    </article>
 {%- endfor %}
+</div>

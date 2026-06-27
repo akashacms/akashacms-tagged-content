@@ -1,6 +1,7 @@
 
 For 0.10, one task is restructuring what the tagged-content plugin does.
 
+
 # Overview of AkashaCMS tags
 
 The core feature is handling "tags" on documents in AkashaCMS-based projects, and surfacing those tags in useful ways to users, search engines, and other systems.
@@ -58,6 +59,8 @@ There are existing features for this, such as partials/tagged-content-doctags.ht
 
 **Complete Implementation**: Offer complete partials for this purpose
 
+**Popup**: When the mouse hovers over a tag, show a popup with a few items from the list of indexed items.  This popup must be pre-rendered at build time.
+
 # In document header metadata, present opengraph tags for document tags
 
 Need a method to expose these in metatags such as opengraph
@@ -65,6 +68,8 @@ Need a method to expose these in metatags such as opengraph
 # Obsidian compatibility
 
 It's highly desirable to use Obsidian to edit AkashaCMS projects
+
+See: https://github.com/akashacms/akasharender/issues/160 for a bunch of ideas
 
 In Obsidian, the document frontmatter can have a `tags` field containing an array of strings, just like AkashaCMS.  But, in Obsidian, the tag format is strictly controlled where in AkashaCMS it's anything you want.
 
@@ -81,4 +86,8 @@ This means the core tag definition must become:
 * _tagName_ -- Obsidian-compatible tag name
 * _tagFullName_ -- Human-friendly version of the tag name
 * _description_ -- Human-friendly description
+
+# In-line list of tagged items
+
+With a custom element, generate a list of page references for a tag.  Customizable to limit the number of items, custom sorting, item template (to select between page title only or title + teaser)
 

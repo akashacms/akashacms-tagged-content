@@ -1,7 +1,20 @@
 <span class="taglist">
     {%- for tagData in tagz %}
-        <a style="padding: 5px;" class="taglink-header p-category" href="{{ tagData.tagUrl }}">
-            {{- tagData.tagName -}}
-        </a> &raquo;&raquo;&raquo;&raquo;
+        <span class="tagged-content-tag">
+            <a class="taglink-header p-category" rel="tag" href="{{ tagData.tagUrl }}">
+                {{- tagData.tagName -}}
+            </a>
+            {%- if tagData.popupEntries and tagData.popupEntries.length %}
+            <span class="tagged-content-tag-popup" role="tooltip">
+                <span class="tagged-content-tag-popup-title">{{ tagData.tagName }}</span>
+                <ul class="tagged-content-tag-popup-list">
+                    {%- for entry in tagData.popupEntries %}
+                    <li><a href="/{{ entry.renderPath }}">{{ entry.title }}</a></li>
+                    {%- endfor %}
+                </ul>
+            </span>
+            {%- endif %}
+        </span>
+        {%- if not loop.last %} &raquo;&raquo;&raquo;&raquo; {% endif -%}
     {% endfor -%}
 </span>

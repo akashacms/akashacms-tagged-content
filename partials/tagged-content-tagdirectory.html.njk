@@ -1,0 +1,14 @@
+<ul class="tagged-content-tag-directory">
+{%- for tag in entries %}
+    <li class="tagged-content-tag-directory-item">
+        <a class="tag-link" href="{{ tag.tagUrl }}">{{ tag.tagName }}</a>
+        {%- if tag.count %} <span class="tag-count">({{ tag.count }})</span>{% endif %}
+        {%- if showRSS and tag.rssUrl %}
+        <a class="tag-rss" rel="alternate" type="application/rss+xml" href="{{ tag.rssUrl }}">RSS</a>
+        {%- endif %}
+        {%- if tag.description %}
+        <span class="tag-description">{{ tag.description }}</span>
+        {%- endif %}
+    </li>
+{%- endfor %}
+</ul>

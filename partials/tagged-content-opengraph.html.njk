@@ -1,0 +1,6 @@
+{%- if ogType %}
+<meta property="og:type" content="article" />
+{%- endif %}
+{%- for tag in tags %}
+<meta property="article:tag" content="{{ tag }}" />
+{%- endfor %}

@@ -1,0 +1,53 @@
+/*
+ * Default styling for @akashacms/plugins-tagged-content.
+ *
+ * Provides a CSS-only hover/focus popup for the per-document tag list
+ * (tagged-content-doctags partial). Include this stylesheet on pages that use
+ * <tags-for-document/>, e.g. via config.addStylesheet({ href:
+ * "/vendor/@akashacms/plugins-tagged-content/tagged-content.css" }).
+ */
+
+.tagged-content-tag {
+    position: relative;
+    display: inline-block;
+}
+
+.tagged-content-tag-popup {
+    /* Hidden until the tag is hovered or focused. */
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1000;
+    min-width: 16em;
+    max-width: 24em;
+    padding: 0.5em 0.75em;
+    background: #fff;
+    color: #222;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    text-align: left;
+    white-space: normal;
+}
+
+/* Show the popup on hover and on keyboard focus within the tag. */
+.tagged-content-tag:hover .tagged-content-tag-popup,
+.tagged-content-tag:focus-within .tagged-content-tag-popup {
+    display: block;
+}
+
+.tagged-content-tag-popup-title {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.25em;
+}
+
+.tagged-content-tag-popup-list {
+    margin: 0;
+    padding-left: 1.2em;
+}
+
+.tagged-content-tag-popup-list li {
+    margin: 0.15em 0;
+}

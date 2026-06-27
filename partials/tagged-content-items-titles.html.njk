@@ -1,0 +1,7 @@
+<ul class="h-feed tagged-content-items tagged-content-items-titles" data-tag="{{ tagName }}">
+{%- for entry in entries %}
+    <li class="h-entry tagged-content-item">
+        <a class="p-name u-url" href="/{{ entry.renderPath }}">{{ entry.title }}</a>
+    </li>
+{%- endfor %}
+</ul>

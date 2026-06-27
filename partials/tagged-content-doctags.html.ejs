@@ -1,7 +1,16 @@
 <span class="taglist">
     <% for (var i = 0; i < tagz.length; i++) {
         var tagData = tagz[i];
-        %> <a style="padding: 5px;" class="taglink-header p-category" href="<%= tagData.tagUrl %>"><%= tagData.tagName %></a> <%
+        %><span class="tagged-content-tag"><a class="taglink-header p-category" rel="tag" href="<%= tagData.tagUrl %>"><%= tagData.tagName %></a><%
+        if (tagData.popupEntries && tagData.popupEntries.length) {
+            %><span class="tagged-content-tag-popup" role="tooltip"><span class="tagged-content-tag-popup-title"><%= tagData.tagName %></span><ul class="tagged-content-tag-popup-list"><%
+            for (var k = 0; k < tagData.popupEntries.length; k++) {
+                var entry = tagData.popupEntries[k];
+                %><li><a href="/<%= entry.renderPath %>"><%= entry.title %></a></li><%
+            }
+            %></ul></span><%
+        }
+        %></span><%
         if (i < (tagz.length-1)) { %> &raquo;&raquo;&raquo;&raquo; <% }
     } %>
 </span>

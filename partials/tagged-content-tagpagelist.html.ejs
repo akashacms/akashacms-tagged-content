@@ -1,12 +1,18 @@
+<div class="h-feed tagged-content-tag-list">
 <%
     for (var j = 0; j < entries.length; j++) {
         var entry = entries[j];
-        %><p>
+        %><article class="h-entry tagged-content-tag-entry">
             <strong>
-            <a href="/<%= entry.renderPath %>"><%=
-                 entry.metadata.title 
-            %></a></strong><% 
-             if (entry.teaser) { %>: <%- entry.teaser %><% } %>
-        </p><%
+            <a class="p-name u-url" href="/<%= entry.renderPath %>"><%=
+                 (entry.metadata && entry.metadata.title) ? entry.metadata.title : entry.title
+            %></a></strong><%
+             if (entry.teaser) { %> <span class="p-summary">: <%- entry.teaser %></span><% }
+             if (entry.publishedISO) { %>
+            <time class="dt-published" datetime="<%= entry.publishedISO %>"><%=
+                entry.published ? entry.published : entry.publishedISO
+            %></time><% } %>
+        </article><%
     }
 %>
+</div>

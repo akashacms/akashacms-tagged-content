@@ -1,6 +1,6 @@
 ---
 layout: plugin-documentation.html.ejs
-title: AskashaCMS Tagged-Content plugin documentation
+title: AkashaCMS Tagged-Content plugin documentation
 ---
 
 _Tags_ are an excellent way to categorize and organize content.  Other platforms like Drupal or Wordpress or Blogger have similar features.  In `@akashacms/plugins-tagged-content` you add a list of tags to the document front-matter like so:
@@ -13,7 +13,7 @@ tags: External, Links
 ---
 ```
 
-The `tags` entry in the frontmatter is what contains the tags. This example shows the tags as a comma-separated list.  They can also be presented as a YAML array, like so:
+The `tags` entry in the frontmatter is what contains the tags.  This example shows the tags as a comma-separated list.  They can also be presented as a YAML array, like so:
 
 ```yaml
 ---
@@ -26,10 +26,14 @@ tags:
 
 This array has just one entry, but of course it supports any number of items.
 
-The `tags` item is a feature in Akasharender.  This plugin extends that feature to present it in various ways.
+The `tags` item is a feature in AkashaRender.  This plugin extends that feature to present it in various ways:
 
-* A `tags-for-document` custom element shows the tags for the current document
-* A set of pages can be generated, one page per tag, showing the items associated with that tag
+* A `tags-for-document` custom element shows the tags for the current document, with an optional pre-rendered hover popup listing other documents with each tag.
+* A set of pages is generated, one page per tag, listing the documents with that tag, each accompanied by an RSS feed.
+* An `index.html` page is generated in the tags directory, listing every tag.
+* A `tagged-content-items` custom element renders an in-line list of documents for a given tag.
+* A `tags-for-document-opengraph` custom element emits OpenGraph `article:tag` metadata in the page `<head>`.
+* The generated markup uses [microformats](https://microformats.org/wiki/h-entry) (`h-feed`, `h-entry`, `p-category`, `p-name`, `u-url`, `p-summary`, `dt-published`) and Open Graph metadata so search engines can correctly understand the content.
 
 # Installation
 
@@ -38,7 +42,7 @@ Add the following to `package.json`
 ```json
 "dependencies": {
       ...
-      "@akashacms/plugins-tagged-content": "^0.9.x",
+      "@akashacms/plugins-tagged-content": "^0.10.x",
       ...
 }
 ```
@@ -47,145 +51,134 @@ Once added to `package.json` run: `npm install`
 
 # Configuration
 
-Add the following to `config.js`
+Add the following to `config.mjs`
 
 ```js
+import { TaggedContentPlugin } from '@akashacms/plugins-tagged-content';
+
 config
     ...
-    .use(require('@akashacms/plugins-tagged-content'), {
+    .use(TaggedContentPlugin, {
         sortBy: 'title',
-        // @tagDescription@ can only appear once
-        headerTemplate: "---\ntitle: @title@\nlayout: tagpage.html.ejs\n---\n<p><a href='./index.html'>Tag Index</a></p><p>Pages with tag @tagName@</p><p>@tagDescription@</p>",
-        indexTemplate: "---\ntitle: Tags for AkashaCMS Example site\nlayout: tagpage.html.ejs\n---\n",
-        pathIndexes: '/tags/',
-        tags: [
-            {
-                name: "Tag Name 1",
-                description: "Tag description text"
-            }
-        ]
+        pathIndexes: '/tags/'
     })
     ...
 ```
 
-_sortBy_: As suggested by the function name, this controls the sorting of tag entries in a tag index page.
+All options are optional except that `pathIndexes` must identify where the tag pages go.
 
-_headerTemplate_: The tag index pages are dynamically generated, meaning that you don't create them yourself.  This value controls the initial content of each.
+_sortBy_: Controls the sorting of document entries on a tag index page.  Either `'title'` (default) or `'date'` (newest first).
 
-_pathIndexes_: Controls where, within the site, the tag index pages are rendered.
+_pathIndexes_: Controls where, within the site, the tag index pages are rendered (e.g. `/tags/`).
 
-_indexTemplate_: Is the template used to generate the `index.html` in the tags directory.
+_headerTemplate_: The tag index pages are dynamically generated, meaning that you don't create them yourself.  This value controls the initial content of each.  It is a string containing YAML frontmatter and body content, and supports the tokens `@title@`, `@tagName@`, and `@tagDescription@`.  When omitted, the plugin uses a shipped default template and layout.
 
-_tags_: Is an array of items where we can list descriptions for a given tag.
+_indexTemplate_: The template used to generate the `index.html` in the tags directory.  When omitted, the plugin uses a shipped default.
 
-# Custom Tags
+_popupItemCount_: The number of documents to pre-render into each tag's hover popup in the per-document tag list.  Defaults to `5`.  Set to `0` to disable the popups.
+
+_showTagDirectoryRSS_: Whether the tags directory `index.html` includes a per-tag RSS link.  Defaults to `true`.
+
+## Tag descriptions
+
+A _description_ can be associated with a tag.  Descriptions appear at the top of the tag's index page and alongside the tag in the tags directory.  Descriptions are provided through the AkashaRender configuration:
+
+```js
+config.addTagDescriptions([
+    {
+        tagName: "External",
+        description: "Links to external websites"
+    },
+    {
+        tagName: "FigImg",
+        description: "Figure/Image test"
+    }
+]);
+```
+
+# Generated output
+
+When the site is rendered, the plugin generates the following under `pathIndexes` (e.g. `/tags/`):
+
+* One HTML page per tag (e.g. `/tags/external.html`) listing the documents that carry the tag.  Each entry is marked up as an `h-entry` within an `h-feed`, with `p-name`/`u-url`/`p-summary`/`dt-published`.  The page carries Open Graph metadata (`og:type=website`, `og:title`, `og:description`, `og:url`).
+* One RSS feed per tag (e.g. `/tags/external.xml`) with the same documents, including their titles, teasers, and publication dates.
+* An `index.html` listing every tag, with the document count, an optional RSS link, and the tag description.
+
+The plugin ships default partials and a default layout (`tagpage.html.njk`), so it works out of the box.  You can override any of these by mounting your own partials/layouts directory with files of the same name.
+
+# Styling the hover popup
+
+The per-document tag list can show a hover popup listing other documents that share a tag.  The popup is pre-rendered at build time (no client-side fetch) and is shown with a CSS-only stylesheet shipped by the plugin.  Include it on pages that use `<tags-for-document/>`:
+
+```js
+config.addStylesheet({
+    href: "/vendor/@akashacms/plugins-tagged-content/tagged-content.css"
+});
+```
+
+# Custom Elements
 
 ```html
 <tags-for-document/>
 ```
 
-Generates an indicator of the tags for this document, linking them to the corresponding tag page.
+Generates an indicator of the tags for the current document, linking each to its tag page.  Each tag link is marked up with `class="p-category"` and `rel="tag"`.  When `popupItemCount` is greater than `0`, each tag includes a pre-rendered hover popup listing up to that many documents sharing the tag.
 
-The tags are rendered through the `tagged-content-doctags.html.njk` template.
+The tags are rendered through the `tagged-content-doctags.html.njk` partial.  Typically this element is used in the layout template for article pages.
 
-Typically this tag is used in the layout template for article templates.
-
-```php
-<% ... config.plugin('@akashacms/plugins-tagged-content').hasTag(tags, 'Doctor Who') ... %>
+```html
+<tags-for-document-opengraph/>
 ```
 
-The _hasTag_ function is useful for checking whether a given tag is set, or not.  This will allow you to modify the content based on the document tags.
+For use in a layout's `<head>`.  Emits one `<meta property="article:tag" content="...">` per tag of the current document.  Add the `og-type` attribute to also emit `<meta property="og:type" content="article">`:
 
-The portion of this, `config.plugin('@akashacms/plugins-tagged-content')`, asks Akasharender to access the Plugin object.  Hence, this makes a direct call to the `hasTag` function.
+```html
+<tags-for-document-opengraph og-type="article"></tags-for-document-opengraph>
+```
+
+```html
+<tagged-content-items tag="Tag Name"/>
+```
+
+Renders an in-line list of documents that carry the named tag.  Attributes:
+
+* `tag` (required) -- the tag name.
+* `limit` -- the maximum number of documents to list.
+* `sort-by` -- `title` or `date` (defaults to the plugin's `sortBy`).
+* `template` -- `title` (or `titles`) for a title-only list; a partial file name ending in `.njk`/`.ejs` for a custom template; otherwise the default title + teaser list.
 
 ```html
 <tags-feeds-list/>
 ```
 
-Generates a list of links to RSS files corresponding to each tag.  RSS files are an XML format showing data for a list of links.  These RSS files are generated as a byproduct of generating tag pages, and list information about each article containing the given tag.
+**DEPRECATED.** Generates a list of links to the per-tag RSS feeds.  This is superseded by the tags directory `index.html` page, which lists every tag with an optional RSS link.  The element remains functional but logs a deprecation warning.
 
-The `template` attribute lets you override the template used.  By default the feeds list is generated through the `tagged-content-feedlist.html.njk` partial.
+# Plugin API
 
-The `additional-classes` attribute lets you add additional class names to the `<div>` in the partial template.
+The plugin object is reachable with `config.plugin('@akashacms/plugins-tagged-content')`.  Useful methods:
 
-```html
-<tag-list-container/>
+* `tagPageUrl(config, tagName)` -- the URL of a tag's index page.
+* `tagRSSUrl(config, tagName)` -- the URL of a tag's RSS feed.
+* `tagsDirectoryData(config)` -- an array of `{ tagName, description, tagUrl, rssUrl, count }` for every tag, suitable for rendering a tags directory.
+* `tagEntryList(config, tagName, { limit, sortBy })` -- the enriched, sorted list of documents for a tag.
+* `obsidianIncompatibleTags(config)` -- see below.
+
+# Command line
+
+The plugin provides a small CLI (`npx akashacms-tagged-content <command>`):
+
+* `generate-indexes <configFN>` -- generate the tag index pages and per-tag RSS feeds.
+* `tag-url <configFN> <tagName>` -- print the URL the plugin generates for a tag page.
+* `obsidian-incompatible-tags <configFN>` -- see below.
+
+# Obsidian compatibility (advisory)
+
+If you also edit your content in [Obsidian](https://obsidian.md/), note that Obsidian enforces a stricter tag format than AkashaCMS: tags may contain letters, numbers, `_`, `-`, and `/` (for nesting), but may not contain spaces or other punctuation, and may not be numbers-only.
+
+The plugin can report which of your tags would not be compatible with Obsidian.  This is **advisory only** -- it makes no changes to your content and does not affect rendering.
+
+```shell
+npx akashacms-tagged-content obsidian-incompatible-tags config.mjs
 ```
 
-DISABLED BECAUSE OF CURRENT DISUSE
-
-Generated into the `index.html` for the tags directory.  This is a wrapper element meant to surround the tag list.
-
-The template is `tagged-content-list-container.html.njk`, so override this to customize the presentation.  Use the `template` attribute to change the template name.
-
-The template includes a `<div>` wrapping around the content.  Adding a `id` attribute sets the `id` of this `<div>`.  Adding an `additional-classes` attribute adds class names to the `<div>`.  The default template has the class name `tagged-content-tag-list-container`.
-
-It is to be used with other tags as so:
-
-```html
-<tags-list-container id="example-tags-list-container">
-    other content including other custom tags
-</tags-list-container>
-```
-
-```html
-<tag-list-item/>
-```
-
-DISABLED BECAUSE OF CURRENT DISUSE
-
-This is an individual item in the tag list in the `index.html` in the tags directory.
-
-The template is `tagged-content-list-item.html.njk`, so override this to customize the presentation.  Use the `template` attribute to change the template name.
-
-The template includes a `<div>` wrapping around the content.  Adding a `id` attribute sets the `id` of this `<div>`.  Adding an `additional-classes` attribute adds class names to the `<div>`.  The default template has the class name `tagged-content-tag-list-item`.
-
-The `href` attribute is the URL to use in the link.  The `name` attribute is the anchor text to use in the link.
-
-The content of the tag becomes the _description_ text in the link.
-
-```html
-<tag-list-item name="Tag name" href="URL for tag">
-    Descriptive text
-</tag-list-item>
-```
-
-In the source for the plugin, there is commented-out code that shows using `tag-list-container` and `tag-list-item` to generate an `index.html` in the tags directory.  The generated `index.html` would contain something like this:
-
-```html
-<tag-list-container>
-    <tag-list-item name="Tag1" href="..">
-        ..description
-    </tag-list-item>
-    <tag-list-item name="Tag2" href="..">
-        ..description
-    </tag-list-item>
-    <tag-list-item name="Tag3" href="..">
-        ..description
-    </tag-list-item>
-</tag-list-container>
-```
-
-REMOVED DUE TO DISUSE: Both `tag-list-item` and `tag-list-container` are currently unused.  The goal was to support generating an `index.html` in the tags directory.
-
-SUGGESTED COURSE CHANGE: At this moment my goal is to decrease the number of custom tags to decrease the computation required to render a site.  To serve that goal, do not reinstate these tags.  Instead, develop NJK macros to call Plugin functions that serve generating such an index page.
-
-There could be `index.html.njk` in the `tags` directory which calls equivalent Plugin functions.
-
-```html
-<div id="tags-list">
-    {% make a call to the Plugin which generates
-       a list of links to tags pages.
-       
-       This list
-       could also include the link to the RSS file
-       for each tag.  Doing so would remove the
-       necessity for the tags-feeds-list element.
-    %}
-</div>
-```
-
-See https://github.com/akashacms/akasharender/issues/33
-
-See https://github.com/akashacms/akasharender/issues/32
-
+The output lists each incompatible tag, the reason(s), and the documents using it.  The same information is available programmatically via `config.plugin('@akashacms/plugins-tagged-content').obsidianIncompatibleTags(config)`.
